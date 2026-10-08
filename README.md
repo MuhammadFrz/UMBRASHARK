@@ -53,7 +53,7 @@ Unlike basic user-agent switchers or canvas blockers that trigger bot-detection 
 3. Click the **Load unpacked** button in the top left.
 4. Select this directory:
    ```
-   c:\Users\Muhammad Frz\Desktop\new project
+   ./UMBRASHARK
    ```
 5. The extension **"UmbraShark - Flat Stealth Matrix"** is now installed.
 6. Click the extension icon in the toolbar to open the full Control Center dashboard.
