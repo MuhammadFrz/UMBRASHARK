@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "UmbraShark - Flat Stealth Matrix",
+  "version": "1.0.0",
+  "description": "Apex anti-fingerprinting and identity cloaking suite for Brave and Chromium browsers. Latin umbra stealth with flat matrix evasion.",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostPermissions",
+    "tabs",
+    "privacy"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js"
+  },
+  "action": {
+    "default_title": "UmbraShark Control Center",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/stealth_injected.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/bridge_isolated.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "data/profiles.js",
+        "ui/dashboard.html",
+        "ui/dashboard.css",
+        "ui/dashboard.js",
+        "icons/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "minimum_chrome_version": "111"
+}
