@@ -1,571 +1,355 @@
-/**
- * UmbraShark - Stealth Injection Engine (Main World)
- * Runs at document_start in the MAIN execution context.
- * Hardened prototype-level evasion with authentic V8 descriptor & toString fidelity.
- */
-
-(function() {
+/** Installed only by chrome.scripting with settings from the service worker. */
+function installStealthEngine(initialState, controlKey, controlToken) {
   'use strict';
-
-  // Prevent double execution in frames if already initialized
-  if (window.__CLOAK_ENGINE_INITIALIZED__) return;
-  Object.defineProperty(window, '__CLOAK_ENGINE_INITIALIZED__', {
-    value: true,
-    enumerable: false,
-    configurable: false,
-    writable: false
-  });
-
-  // Default baseline profile (Alienware Windows 11 RTX 4080 / NYC)
-  const DEFAULT_STATE = {
-    enabled: true,
-    os: "Windows",
-    platform: "Win32",
-    chPlatform: "Windows",
-    chPlatformVersion: "15.0.0",
-    architecture: "x86",
-    bitness: "64",
-    ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    appVersion: "5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    brands: [
-      { brand: "Not/A)Brand", version: "8" },
-      { brand: "Chromium", version: "126" },
-      { brand: "Google Chrome", version: "126" }
-    ],
-    gpuVendor: "Google Inc. (NVIDIA)",
-    gpuRenderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)",
-    cores: 16,
-    memory: 32,
-    screenWidth: 2560,
-    screenHeight: 1440,
-    availWidth: 2560,
-    availHeight: 1400,
-    dpr: 1.0,
-    colorDepth: 24,
-    timezone: "America/New_York",
-    offset: 240, // minutes behind UTC (EDT = UTC-4 = 240)
-    timezoneAbbr: "EDT",
-    locale: "en-US",
-    languages: ["en-US", "en"],
-    lat: 40.7128,
-    lon: -74.0060,
-    canvasNoise: true,
-    audioNoise: true,
-    webRtcProtect: true,
-    whitelisted: false
-  };
-
-  // Active state container
-  let state = Object.assign({}, DEFAULT_STATE);
-
-  // Try to restore cached state from sessionStorage if available for instant tick-0 sync
-  try {
-    const cached = sessionStorage.getItem('__cloak_sync_cache__');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      Object.assign(state, parsed);
-    }
-  } catch (e) {}
-
-  // -------------------------------------------------------------
-  // 1. NATIVE CAMOUFLAGE UTILITY (toString & Descriptor Fidelity)
-  // -------------------------------------------------------------
+  const define = Object.defineProperty;
+  const descriptor = Object.getOwnPropertyDescriptor;
+  const existing = window[controlKey];
+  if (typeof existing === 'function') return existing(controlToken, initialState);
+  let state = initialState;
+  const active = () => state.enabled === true && state.whitelisted !== true;
+  const patches = [];
+  const nativeDateTimeFormat = Intl.DateTimeFormat;
+  const NativeDate = Date;
+  const nativeParse = Date.parse;
+  const nativeUTC = Date.UTC;
+  const nativeSetTime = Date.prototype.setTime;
+  const nativeGetTime = Date.prototype.getTime;
   const nativeToString = Function.prototype.toString;
-  const hookedFunctionsMap = new WeakMap();
+  const functions = new WeakMap();
+  const audioBuffers = new Set();
+  const audioSamples = new WeakMap();
 
-  function makeNative(fn, name, isGetter = false) {
-    const nativeStr = isGetter
-      ? `function get ${name}() { [native code] }`
-      : `function ${name}() { [native code] }`;
-    
-    hookedFunctionsMap.set(fn, nativeStr);
-
-    try {
-      Object.defineProperty(fn, 'name', {
-        value: isGetter ? `get ${name}` : name,
-        configurable: true
-      });
-    } catch (e) {}
-
+  function nativeLooking(fn, name) {
+    functions.set(fn, `function ${name}() { [native code] }`);
     return fn;
   }
+  function patch(object, key, replacement) {
+    const original = descriptor(object, key);
+    if (!original || !original.configurable) return;
+    patches.push({ object, key, original, replacement: Object.assign({}, original, replacement) });
+  }
+  function method(object, key, factory) {
+    const original = object && descriptor(object, key);
+    if (original && typeof original.value === 'function') patch(object, key, { value: nativeLooking(factory(original.value), key) });
+  }
+  function getter(proto, key, value) {
+    const original = descriptor(proto, key);
+    if (!original || !original.get) return;
+    patch(proto, key, { get: nativeLooking(function() {
+      // Delegate first to retain native receiver validation.
+      const nativeValue = original.get.call(this);
+      return active() ? value(nativeValue) : nativeValue;
+    }, 'get ' + key) });
+  }
 
-  // Hook Function.prototype.toString
-  const customToString = function toString() {
-    if (hookedFunctionsMap.has(this)) {
-      return hookedFunctionsMap.get(this);
-    }
-    return nativeToString.apply(this, arguments);
-  };
-  hookedFunctionsMap.set(customToString, "function toString() { [native code] }");
+  method(Function.prototype, 'toString', () => function toString() {
+    return functions.get(this) || nativeToString.call(this);
+  });
+  for (const [key, field] of Object.entries({
+    userAgent: 'ua', platform: 'platform', language: 'locale',
+    hardwareConcurrency: 'cores', deviceMemory: 'memory'
+  })) getter(Navigator.prototype, key, () => state[field]);
+  getter(Navigator.prototype, 'appVersion', () => state.ua.replace(/^Mozilla\//, ''));
+  getter(Navigator.prototype, 'languages', () => Object.freeze([...state.languages]));
 
-  try {
-    Object.defineProperty(Function.prototype, 'toString', {
-      value: customToString,
-      writable: true,
-      configurable: true,
-      enumerable: false
-    });
-  } catch (e) {}
-
-  // Helper to safely define a stealth getter on a prototype
-  function defineStealthGetter(proto, prop, getterFn, expectedContext) {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
-
-    const hookedGetter = function() {
-      if (expectedContext && !(this instanceof expectedContext)) {
-        throw new TypeError('Illegal invocation');
-      }
-      if (!state.enabled || state.whitelisted) {
-        if (originalDescriptor && originalDescriptor.get) {
-          return originalDescriptor.get.call(this);
-        }
-      }
-      return getterFn.call(this);
+  const uaData = navigator.userAgentData;
+  if (uaData) {
+    const hints = data => {
+      if (!active()) return data;
+      const values = {
+        brands: state.brands, mobile: false, platform: state.chPlatform,
+        platformVersion: state.chPlatformVersion, architecture: state.architecture,
+        bitness: state.bitness, model: '',
+        fullVersionList: state.brands.map(b => ({ brand: b.brand, version: b.brand === 'Chromium' || /Chrome|Edge|Brave/.test(b.brand)
+          ? (state.ua.match(/(?:Chrome|Edg)\/([\d.]+)/) || [0, b.version + '.0.0.0'])[1] : b.version + '.0.0.0' }))
+      };
+      return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, active() && values[key] !== undefined ? structuredClone(values[key]) : value]));
     };
-
-    makeNative(hookedGetter, prop, true);
-
-    try {
-      Object.defineProperty(proto, prop, {
-        get: hookedGetter,
-        set: undefined,
-        enumerable: true,
-        configurable: true
-      });
-    } catch (e) {}
+    const proxy = new Proxy(uaData, { get(target, key) {
+      if (key === 'getHighEntropyValues') return function getHighEntropyValues(requested) {
+        return target.getHighEntropyValues(requested).then(hints);
+      };
+      if (key === 'toJSON') return () => hints(target.toJSON());
+      if (active() && key === 'brands') return structuredClone(state.brands);
+      if (active() && key === 'mobile') return false;
+      if (active() && key === 'platform') return state.chPlatform;
+      const value = Reflect.get(target, key, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    }});
+    getter(Navigator.prototype, 'userAgentData', () => proxy);
   }
-
-  // -------------------------------------------------------------
-  // 2. NAVIGATOR & CLIENT HINTS CLOAK
-  // -------------------------------------------------------------
-  defineStealthGetter(Navigator.prototype, 'userAgent', () => state.ua, Navigator);
-  defineStealthGetter(Navigator.prototype, 'appVersion', () => state.appVersion || state.ua.replace(/^Mozilla\//, ''), Navigator);
-  defineStealthGetter(Navigator.prototype, 'platform', () => state.platform, Navigator);
-  defineStealthGetter(Navigator.prototype, 'vendor', () => "Google Inc.", Navigator);
-  defineStealthGetter(Navigator.prototype, 'language', () => state.locale, Navigator);
-  defineStealthGetter(Navigator.prototype, 'languages', () => Object.freeze([...state.languages]), Navigator);
-  defineStealthGetter(Navigator.prototype, 'hardwareConcurrency', () => state.cores, Navigator);
-  defineStealthGetter(Navigator.prototype, 'deviceMemory', () => state.memory, Navigator);
-  defineStealthGetter(Navigator.prototype, 'maxTouchPoints', () => 0, Navigator);
-
-  // High-Entropy Client Hints: navigator.userAgentData
-  if ('userAgentData' in Navigator.prototype || 'userAgentData' in navigator) {
-    const originalUAData = navigator.userAgentData;
-
-    const mockUAData = {
-      get brands() {
-        if (!state.enabled || state.whitelisted) {
-          return originalUAData ? originalUAData.brands : [];
-        }
-        return state.brands;
-      },
-      get mobile() {
-        return false;
-      },
-      get platform() {
-        if (!state.enabled || state.whitelisted) {
-          return originalUAData ? originalUAData.platform : "Windows";
-        }
-        return state.chPlatform || "Windows";
-      },
-      toJSON: function toJSON() {
-        return {
-          brands: this.brands,
-          mobile: this.mobile,
-          platform: this.platform
-        };
-      },
-      getHighEntropyValues: function getHighEntropyValues(hints) {
-        if (!state.enabled || state.whitelisted) {
-          return originalUAData ? originalUAData.getHighEntropyValues(hints) : Promise.resolve({});
-        }
-        return Promise.resolve({
-          brands: state.brands,
-          mobile: false,
-          platform: state.chPlatform,
-          platformVersion: state.chPlatformVersion || "15.0.0",
-          architecture: state.architecture || "x86",
-          bitness: state.bitness || "64",
-          model: "",
-          fullVersionList: state.brands.map(b => ({ brand: b.brand, version: b.version + ".0.0.0" }))
-        });
-      }
-    };
-
-    makeNative(mockUAData.toJSON, 'toJSON');
-    makeNative(mockUAData.getHighEntropyValues, 'getHighEntropyValues');
-
-    defineStealthGetter(Navigator.prototype, 'userAgentData', () => mockUAData, Navigator);
+  for (const [key, field] of Object.entries({ width: 'screenWidth', height: 'screenHeight',
+    availWidth: 'availWidth', availHeight: 'availHeight', colorDepth: 'colorDepth', pixelDepth: 'colorDepth' })) {
+    getter(Screen.prototype, key, () => state[field]);
   }
+  const dpr = descriptor(window, 'devicePixelRatio');
+  if (dpr && dpr.get) getter(window, 'devicePixelRatio', () => state.dpr);
 
-  // -------------------------------------------------------------
-  // 3. SCREEN & DISPLAY METRICS CLOAK
-  // -------------------------------------------------------------
-  defineStealthGetter(Screen.prototype, 'width', () => state.screenWidth, Screen);
-  defineStealthGetter(Screen.prototype, 'height', () => state.screenHeight, Screen);
-  defineStealthGetter(Screen.prototype, 'availWidth', () => state.availWidth, Screen);
-  defineStealthGetter(Screen.prototype, 'availHeight', () => state.availHeight, Screen);
-  defineStealthGetter(Screen.prototype, 'colorDepth', () => state.colorDepth || 24, Screen);
-  defineStealthGetter(Screen.prototype, 'pixelDepth', () => state.colorDepth || 24, Screen);
+  // Real formatters carry the selected timezone; resolvedOptions itself stays native.
+  function optionsWithTimezone(options) {
+    if (options === null) return null;
+    return new Proxy(Object(options), { get(target, key) {
+      const value = Reflect.get(target, key);
+      return key === 'timeZone' && value === undefined ? state.timezone : value;
+    }});
+  }
+  function formatterArgs(args) {
+    return active() ? [args[0] === undefined ? state.locale : args[0], optionsWithTimezone(args[1])] : args;
+  }
+  const formatterProxy = new Proxy(nativeDateTimeFormat, {
+    apply(target, receiver, args) { return Reflect.apply(target, receiver, formatterArgs(args)); },
+    construct(target, args, newTarget) { return Reflect.construct(target, formatterArgs(args), newTarget); }
+  });
+  patch(Intl, 'DateTimeFormat', { value: formatterProxy });
 
-  // window.devicePixelRatio
-  try {
-    const originalDprDescriptor = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
-    const dprGetter = function() {
-      if (!state.enabled || state.whitelisted) {
-        return originalDprDescriptor && originalDprDescriptor.get ? originalDprDescriptor.get.call(window) : 1;
-      }
-      return state.dpr || 1.0;
-    };
-    makeNative(dprGetter, 'devicePixelRatio', true);
-    Object.defineProperty(window, 'devicePixelRatio', {
-      get: dprGetter,
-      configurable: true,
-      enumerable: true
+  function dateParts(date) {
+    const time = nativeGetTime.call(date);
+    if (!Number.isFinite(time)) return null;
+    const parts = new nativeDateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+      timeZone: state.timezone, year: 'numeric', era: 'short', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short', hourCycle: 'h23', timeZoneName: 'long'
+    }).formatToParts(date);
+    const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    const year = p.era === 'BC' ? 1 - Number(p.year) : Number(p.year);
+    const wall = new NativeDate(0);
+    wall.setUTCFullYear(year, Number(p.month) - 1, Number(p.day));
+    wall.setUTCHours(Number(p.hour), Number(p.minute), Number(p.second), 0);
+    p.offsetMilliseconds = Math.floor(time / 1000) * 1000 - wall.getTime();
+    p.offset = p.offsetMilliseconds / 60000;
+    p.yearNumber = year;
+    return p;
+  }
+  method(Date.prototype, 'getTimezoneOffset', original => function getTimezoneOffset() {
+    if (!active()) return original.call(this);
+    const parts = dateParts(this);
+    return parts ? parts.offset : NaN;
+  });
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function dateString(date, includeDate, includeTime) {
+    const p = dateParts(date);
+    if (!p) return 'Invalid Date';
+    const year = p.yearNumber < 0 ? '-' + String(-p.yearNumber).padStart(4, '0') : String(p.yearNumber).padStart(4, '0');
+    const dateText = `${p.weekday} ${months[Number(p.month) - 1]} ${p.day} ${year}`;
+    const offset = Math.abs(Math.trunc(p.offset));
+    const timeText = `${p.hour}:${p.minute}:${p.second} GMT${p.offset > 0 ? '-' : '+'}${String(Math.floor(offset / 60)).padStart(2, '0')}${String(offset % 60).padStart(2, '0')} (${p.timeZoneName})`;
+    return [includeDate ? dateText : '', includeTime ? timeText : ''].filter(Boolean).join(' ');
+  }
+  for (const [name, date, time] of [['toString', true, true], ['toDateString', true, false], ['toTimeString', false, true]]) {
+    method(Date.prototype, name, original => function() {
+      return active() ? dateString(this, date, time) : original.call(this);
     });
-  } catch (e) {}
-
-  // -------------------------------------------------------------
-  // 4. TIMEZONE & DATE SYNCHRONIZATION
-  // -------------------------------------------------------------
-  const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
-  const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
-  const originalDateToString = Date.prototype.toString;
-  const originalToTimeString = Date.prototype.toTimeString;
-  const originalToLocaleString = Date.prototype.toLocaleString;
-  const originalToLocaleTimeString = Date.prototype.toLocaleTimeString;
-  const originalToLocaleDateString = Date.prototype.toLocaleDateString;
-
-  // Capture real host timezone at initialization
-  let realHostTimezone = 'UTC';
-  try {
-    realHostTimezone = originalResolvedOptions.call(new Intl.DateTimeFormat()).timeZone;
-  } catch (e) {}
-
-  // Date.prototype.getTimezoneOffset
-  Date.prototype.getTimezoneOffset = makeNative(function getTimezoneOffset() {
-    if (!state.enabled || state.whitelisted) {
-      return originalGetTimezoneOffset.apply(this, arguments);
-    }
-    return state.offset; // returns target offset in minutes
-  }, 'getTimezoneOffset');
-
-  // Intl.DateTimeFormat.prototype.resolvedOptions
-  Intl.DateTimeFormat.prototype.resolvedOptions = makeNative(function resolvedOptions() {
-    const options = originalResolvedOptions.apply(this, arguments);
-    if (!state.enabled || state.whitelisted) return options;
-    options.timeZone = state.timezone;
-    options.locale = state.locale;
-    return options;
-  }, 'resolvedOptions');
-
-  // Helper to format date string to target timezone
-  function formatWithSpoofedTimezone(date, includeTime = true, includeDate = true) {
-    try {
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: state.timezone,
-        weekday: includeDate ? 'short' : undefined,
-        month: includeDate ? 'short' : undefined,
-        day: includeDate ? '2-digit' : undefined,
-        year: includeDate ? 'numeric' : undefined,
-        hour: includeTime ? '2-digit' : undefined,
-        minute: includeTime ? '2-digit' : undefined,
-        second: includeTime ? '2-digit' : undefined,
-        hour12: false
-      });
-      const parts = formatter.formatToParts(date);
-      const map = {};
-      parts.forEach(p => map[p.type] = p.value);
-
-      // Format offset sign and padding e.g. GMT-0400
-      const totalMinutes = -state.offset;
-      const sign = totalMinutes >= 0 ? '+' : '-';
-      const absMin = Math.abs(totalMinutes);
-      const hrs = String(Math.floor(absMin / 60)).padStart(2, '0');
-      const mins = String(absMin % 60).padStart(2, '0');
-      const offsetStr = `GMT${sign}${hrs}${mins} (${state.timezoneAbbr || 'Standard Time'})`;
-
-      if (includeDate && includeTime) {
-        return `${map.weekday} ${map.month} ${map.day} ${map.year} ${map.hour}:${map.minute}:${map.second} ${offsetStr}`;
-      } else if (includeTime) {
-        return `${map.hour}:${map.minute}:${map.second} ${offsetStr}`;
-      }
-    } catch (e) {}
-    return originalDateToString.call(date);
   }
-
-  Date.prototype.toString = makeNative(function toString() {
-    if (!state.enabled || state.whitelisted) return originalDateToString.apply(this, arguments);
-    return formatWithSpoofedTimezone(this, true, true);
-  }, 'toString');
-
-  Date.prototype.toTimeString = makeNative(function toTimeString() {
-    if (!state.enabled || state.whitelisted) return originalToTimeString.apply(this, arguments);
-    return formatWithSpoofedTimezone(this, true, false);
-  }, 'toTimeString');
-
-  Date.prototype.toLocaleString = makeNative(function toLocaleString(locales, options) {
-    if (!state.enabled || state.whitelisted) return originalToLocaleString.apply(this, arguments);
-    const opts = Object.assign({}, options);
-    if (!opts.timeZone) opts.timeZone = state.timezone;
-    return originalToLocaleString.call(this, locales || state.locale, opts);
-  }, 'toLocaleString');
-
-  Date.prototype.toLocaleDateString = makeNative(function toLocaleDateString(locales, options) {
-    if (!state.enabled || state.whitelisted) return originalToLocaleDateString.apply(this, arguments);
-    const opts = Object.assign({}, options);
-    if (!opts.timeZone) opts.timeZone = state.timezone;
-    return originalToLocaleDateString.call(this, locales || state.locale, opts);
-  }, 'toLocaleDateString');
-
-  Date.prototype.toLocaleTimeString = makeNative(function toLocaleTimeString(locales, options) {
-    if (!state.enabled || state.whitelisted) return originalToLocaleTimeString.apply(this, arguments);
-    const opts = Object.assign({}, options);
-    if (!opts.timeZone) opts.timeZone = state.timezone;
-    return originalToLocaleTimeString.call(this, locales || state.locale, opts);
-  }, 'toLocaleTimeString');
-
-  // -------------------------------------------------------------
-  // 5. GEOLOCATION SYNCHRONIZATION
-  // -------------------------------------------------------------
-  if (navigator.geolocation) {
-    const mockCoordinates = () => ({
-      latitude: state.lat + (Math.sin(state.lat) * 0.0001),
-      longitude: state.lon + (Math.cos(state.lon) * 0.0001),
-      accuracy: 25.0,
-      altitude: 15.0,
-      altitudeAccuracy: 5.0,
-      heading: null,
-      speed: null
+  for (const name of ['toLocaleString', 'toLocaleTimeString', 'toLocaleDateString']) {
+    method(Date.prototype, name, original => function(locales, options) {
+      return !active() ? original.apply(this, arguments)
+        : original.call(this, locales === undefined ? state.locale : locales, optionsWithTimezone(options));
     });
-
-    const originalGetCurrentPosition = navigator.geolocation.getCurrentPosition;
-    navigator.geolocation.getCurrentPosition = makeNative(function getCurrentPosition(success, error, options) {
-      if (!state.enabled || state.whitelisted) {
-        return originalGetCurrentPosition.apply(this, arguments);
-      }
-      setTimeout(() => {
-        if (typeof success === 'function') {
-          success({
-            coords: mockCoordinates(),
-            timestamp: Date.now()
-          });
-        }
-      }, 30);
-    }, 'getCurrentPosition');
-
-    const originalWatchPosition = navigator.geolocation.watchPosition;
-    navigator.geolocation.watchPosition = makeNative(function watchPosition(success, error, options) {
-      if (!state.enabled || state.whitelisted) {
-        return originalWatchPosition.apply(this, arguments);
-      }
-      const watchId = Math.floor(Math.random() * 100000);
-      setTimeout(() => {
-        if (typeof success === 'function') {
-          success({
-            coords: mockCoordinates(),
-            timestamp: Date.now()
-          });
-        }
-      }, 30);
-      return watchId;
-    }, 'watchPosition');
   }
-
-  // -------------------------------------------------------------
-  // 6. WEBGL GPU UNMASKED VENDOR & RENDERER
-  // -------------------------------------------------------------
-  const UNMASKED_VENDOR_WEBGL = 0x9245;
-  const UNMASKED_RENDERER_WEBGL = 0x9246;
-
-  function hookWebGL(glProto) {
-    if (!glProto) return;
-
-    if (glProto.getParameter) {
-      const originalGetParameter = glProto.getParameter;
-      glProto.getParameter = makeNative(function getParameter(param) {
-        if (!state.enabled || state.whitelisted) {
-          return originalGetParameter.apply(this, arguments);
-        }
-        if (param === UNMASKED_VENDOR_WEBGL) {
-          return state.gpuVendor || "Google Inc. (NVIDIA)";
-        }
-        if (param === UNMASKED_RENDERER_WEBGL) {
-          return state.gpuRenderer || "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)";
-        }
-        return originalGetParameter.apply(this, arguments);
-      }, 'getParameter');
-    }
-
-    if (glProto.getExtension) {
-      const originalGetExtension = glProto.getExtension;
-      glProto.getExtension = makeNative(function getExtension(name) {
-        if (!state.enabled || state.whitelisted) {
-          return originalGetExtension.apply(this, arguments);
-        }
-        if (name === 'WEBGL_debug_renderer_info') {
-          return {
-            UNMASKED_VENDOR_WEBGL: UNMASKED_VENDOR_WEBGL,
-            UNMASKED_RENDERER_WEBGL: UNMASKED_RENDERER_WEBGL
-          };
-        }
-        return originalGetExtension.apply(this, arguments);
-      }, 'getExtension');
-    }
-
-    if (glProto.getSupportedExtensions) {
-      const originalGetSupportedExtensions = glProto.getSupportedExtensions;
-      glProto.getSupportedExtensions = makeNative(function getSupportedExtensions() {
-        const list = originalGetSupportedExtensions.apply(this, arguments) || [];
-        if (!state.enabled || state.whitelisted) return list;
-        if (!list.includes('WEBGL_debug_renderer_info')) {
-          return [...list, 'WEBGL_debug_renderer_info'];
-        }
-        return list;
-      }, 'getSupportedExtensions');
-    }
-  }
-
-  if (typeof WebGLRenderingContext !== 'undefined') {
-    hookWebGL(WebGLRenderingContext.prototype);
-  }
-  if (typeof WebGL2RenderingContext !== 'undefined') {
-    hookWebGL(WebGL2RenderingContext.prototype);
-  }
-
-  // -------------------------------------------------------------
-  // 7. SPEECH SYNTHESIS VOICES HARMONIZATION
-  // -------------------------------------------------------------
-  if (typeof window.speechSynthesis !== 'undefined') {
-    const originalGetVoices = window.speechSynthesis.getVoices;
-
-    window.speechSynthesis.getVoices = makeNative(function getVoices() {
-      if (!state.enabled || state.whitelisted) {
-        return originalGetVoices.apply(this, arguments);
-      }
-
-      // Check OS voice profile
-      const isMac = state.platform.includes('Mac');
-      const isWin = state.platform.includes('Win');
-      
-      const mockVoices = isMac ? [
-        { name: "Samantha", lang: "en-US", default: true, localService: true, voiceURI: "Samantha" },
-        { name: "Alex", lang: "en-US", default: false, localService: true, voiceURI: "Alex" },
-        { name: "Victoria", lang: "en-US", default: false, localService: true, voiceURI: "Victoria" },
-        { name: "Fred", lang: "en-US", default: false, localService: true, voiceURI: "Fred" },
-        { name: "Daniel", lang: "en-GB", default: false, localService: true, voiceURI: "Daniel" }
-      ] : isWin ? [
-        { name: "Microsoft David - English (United States)", lang: "en-US", default: true, localService: true, voiceURI: "Microsoft David" },
-        { name: "Microsoft Zira - English (United States)", lang: "en-US", default: false, localService: true, voiceURI: "Microsoft Zira" },
-        { name: "Microsoft Mark - English (United States)", lang: "en-US", default: false, localService: true, voiceURI: "Microsoft Mark" }
-      ] : [
-        { name: "Google US English", lang: "en-US", default: true, localService: false, voiceURI: "Google US English" },
-        { name: "Google UK English Female", lang: "en-GB", default: false, localService: false, voiceURI: "Google UK English Female" }
-      ];
-
-      return mockVoices;
-    }, 'getVoices');
-  }
-
-  // -------------------------------------------------------------
-  // 8. MEDIA DEVICES HARMONIZATION
-  // -------------------------------------------------------------
-  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-    const originalEnumerateDevices = navigator.mediaDevices.enumerateDevices;
-
-    navigator.mediaDevices.enumerateDevices = makeNative(function enumerateDevices() {
-      if (!state.enabled || state.whitelisted) {
-        return originalEnumerateDevices.apply(this, arguments);
-      }
-      // Standard clean peripheral set (1 mic, 1 camera, 1 output)
-      return Promise.resolve([
-        { deviceId: "default", kind: "audioinput", label: "", groupId: "group-audio-default" },
-        { deviceId: "comm-mic-id", kind: "audioinput", label: "", groupId: "group-audio-ext" },
-        { deviceId: "default", kind: "audiooutput", label: "", groupId: "group-audio-default" },
-        { deviceId: "video-cam-id", kind: "videoinput", label: "", groupId: "group-video-default" }
-      ]);
-    }, 'enumerateDevices');
-  }
-
-  // -------------------------------------------------------------
-  // 9. DETERMINISTIC SEEDED CANVAS NOISE
-  // -------------------------------------------------------------
-  // Hash function for origin-based deterministic noise (zero frame flutter)
-  function getDeterministicSeed(originStr) {
-    let hash = 0;
-    const str = originStr || window.location.host || 'default-seed';
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  }
-
-  const originSeed = getDeterministicSeed(window.location.host);
-
-  if (typeof HTMLCanvasElement !== 'undefined') {
-    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-
-    HTMLCanvasElement.prototype.toDataURL = makeNative(function toDataURL(type, quality) {
-      if (!state.enabled || state.whitelisted || !state.canvasNoise) {
-        return originalToDataURL.apply(this, arguments);
-      }
-
-      // If canvas is microscopic or purely zero dimension, don't modify
-      if (this.width === 0 || this.height === 0) {
-        return originalToDataURL.apply(this, arguments);
-      }
-
-      try {
-        const ctx = this.getContext('2d');
-        if (ctx) {
-          // Read a single pixel at deterministically chosen coordinate
-          const x = (originSeed % Math.max(1, this.width));
-          const y = ((originSeed >> 3) % Math.max(1, this.height));
-          const imgData = ctx.getImageData(x, y, 1, 1);
-          // Modulate lowest significant bit deterministically
-          imgData.data[0] = (imgData.data[0] ^ (originSeed & 1));
-          ctx.putImageData(imgData, x, y);
-        }
-      } catch (e) {}
-
-      return originalToDataURL.apply(this, arguments);
-    }, 'toDataURL');
-  }
-
-  // -------------------------------------------------------------
-  // 10. AUDIO CONTEXT DETERMINISTIC JITTER
-  // -------------------------------------------------------------
-  if (typeof AudioBuffer !== 'undefined') {
-    const originalGetChannelData = AudioBuffer.prototype.getChannelData;
-
-    AudioBuffer.prototype.getChannelData = makeNative(function getChannelData(channel) {
-      const data = originalGetChannelData.apply(this, arguments);
-      if (!state.enabled || state.whitelisted || !state.audioNoise) return data;
-
-      // Deterministic microscopic math salt on first sample
-      if (data && data.length > 0) {
-        const delta = (originSeed % 100) * 0.00000001;
-        data[0] = data[0] + delta;
-      }
-      return data;
-    }, 'getChannelData');
-  }
-
-  // -------------------------------------------------------------
-  // 11. DYNAMIC STATE SYNCHRONIZATION LISTENER
-  // -------------------------------------------------------------
-  document.addEventListener('__CLOAK_STATE_UPDATE__', function(e) {
-    if (e.detail) {
-      Object.assign(state, e.detail);
-      try {
-        sessionStorage.setItem('__cloak_sync_cache__', JSON.stringify(state));
-      } catch (err) {}
-    }
+  for (const [name, value] of Object.entries({
+    getFullYear: p => p.yearNumber, getYear: p => p.yearNumber - 1900,
+    getMonth: p => Number(p.month) - 1, getDate: p => Number(p.day), getDay: p => weekdays.indexOf(p.weekday),
+    getHours: p => Number(p.hour), getMinutes: p => Number(p.minute), getSeconds: p => Number(p.second)
+  })) method(Date.prototype, name, original => function() {
+    if (!active()) return original.call(this);
+    const p = dateParts(this);
+    return p ? value(p) : NaN;
   });
 
-  // Signal isolated world that main world engine is active and ready
-  document.dispatchEvent(new CustomEvent('__CLOAK_ENGINE_READY__'));
+  function wallToEpoch(wall) {
+    if (!Number.isFinite(wall)) return NaN;
+    const offsets = new Set();
+    for (const hours of [-48, -24, 0, 24, 48]) {
+      const candidate = new NativeDate(wall + hours * 3600000);
+      const p = dateParts(candidate);
+      if (p) offsets.add(p.offsetMilliseconds);
+    }
+    const candidates = [...offsets].map(offset => wall + offset).flatMap(time => {
+      const p = dateParts(new NativeDate(time));
+      return p ? [{ time, local: time - p.offsetMilliseconds }] : [];
+    });
+    // Native-compatible disambiguation: earlier instant in a fold; forward in a gap.
+    const exact = candidates.filter(candidate => candidate.local === wall);
+    if (exact.length) return Math.min(...exact.map(candidate => candidate.time));
+    const future = candidates.filter(candidate => candidate.local > wall).sort((a, b) => a.local - b.local);
+    return future.length ? future[0].time : NaN;
+  }
+  function parseLocalDate(value) {
+    if (typeof value === 'symbol') return nativeParse(value);
+    const text = String(value).trim();
+    // ISO date-only forms are UTC. Explicit offsets and recognized zone names stay native.
+    if (/^(?:[+-]\d{6}|\d{4})(?:-\d{2}(?:-\d{2})?)?$/.test(text) ||
+        /\b(?:GMT|UTC|UT|EST|EDT|CST|CDT|MST|MDT|PST|PDT)\b|z$|[T\s]\d{1,2}:.*[+-]\d{2}(?::?\d{2})?(?:\s|$)/i.test(text)) return nativeParse(text);
+    const iso = /^(?:[+-]\d{6}|\d{4})-\d{2}-\d{2}T/i.test(text);
+    const wall = nativeParse(text + (iso ? 'Z' : ' UTC'));
+    // Legacy parsing is browser-defined; retain native rejection for unsupported syntax.
+    return Number.isFinite(wall) ? wallToEpoch(wall) : nativeParse(text);
+  }
+  function primitive(value) {
+    if (value === null || typeof value !== 'object' && typeof value !== 'function') return value;
+    const exotic = value[Symbol.toPrimitive];
+    if (exotic !== undefined && exotic !== null) {
+      if (typeof exotic !== 'function') throw new TypeError('Cannot convert object to primitive value');
+      const result = exotic.call(value, 'default');
+      if (result === null || typeof result !== 'object' && typeof result !== 'function') return result;
+      throw new TypeError('Cannot convert object to primitive value');
+    }
+    for (const key of ['valueOf', 'toString']) {
+      const convert = value[key];
+      if (typeof convert !== 'function') continue;
+      const result = convert.call(value);
+      if (result === null || typeof result !== 'object' && typeof result !== 'function') return result;
+    }
+    throw new TypeError('Cannot convert object to primitive value');
+  }
+  const dateProxy = new Proxy(NativeDate, {
+    apply(target, receiver, args) {
+      return active() ? dateString(new NativeDate(), true, true) : Reflect.apply(target, receiver, args);
+    },
+    construct(target, args, newTarget) {
+      if (!active() || !args.length) return Reflect.construct(target, args, newTarget);
+      let time;
+      if (args.length > 1) time = wallToEpoch(Reflect.apply(nativeUTC, NativeDate, args));
+      else {
+        try { time = nativeGetTime.call(args[0]); }
+        catch (e) {
+          const value = primitive(args[0]);
+          if (typeof value !== 'string') return Reflect.construct(target, [value], newTarget);
+          time = parseLocalDate(value);
+        }
+      }
+      return Reflect.construct(target, [time], newTarget);
+    }
+  });
+  patch(window, 'Date', { value: dateProxy });
+  patch(NativeDate.prototype, 'constructor', { value: dateProxy });
+  method(NativeDate, 'parse', original => function parse(value) {
+    return active() ? parseLocalDate(value) : original.apply(this, arguments);
+  });
+  for (const [name, utcName] of Object.entries({
+    setFullYear: 'setUTCFullYear', setYear: 'setUTCFullYear', setMonth: 'setUTCMonth', setDate: 'setUTCDate',
+    setHours: 'setUTCHours', setMinutes: 'setUTCMinutes', setSeconds: 'setUTCSeconds', setMilliseconds: 'setUTCMilliseconds'
+  })) {
+    const utcSetter = NativeDate.prototype[utcName];
+    method(NativeDate.prototype, name, original => function() {
+      if (!active()) return original.apply(this, arguments);
+      const time = nativeGetTime.call(this);
+      const p = dateParts(this);
+      const wall = p ? time - p.offsetMilliseconds : name === 'setFullYear' || name === 'setYear' ? 0 : NaN;
+      const local = new NativeDate(wall);
+      let args = [...arguments];
+      if (name === 'setYear') {
+        let year = +args[0];
+        const integer = Math.trunc(year);
+        if (integer >= 0 && integer <= 99) year = integer + 1900;
+        args = [year];
+      }
+      const changed = utcSetter.apply(local, args);
+      const result = wallToEpoch(changed);
+      return nativeSetTime.call(this, result);
+    });
+  }
 
-})();
+  if (typeof Geolocation !== 'undefined') {
+    function position(nativePosition) {
+      if (!active()) return nativePosition;
+      const coords = { latitude: state.lat, longitude: state.lon, accuracy: 25000,
+        altitude: null, altitudeAccuracy: null, heading: null, speed: null };
+      const proxyCoords = new Proxy(nativePosition.coords, { get(target, key) {
+        if (key === 'toJSON') return () => Object.assign({}, coords);
+        return Object.prototype.hasOwnProperty.call(coords, key) ? coords[key] : Reflect.get(target, key, target);
+      }});
+      return new Proxy(nativePosition, { get(target, key) {
+        if (key === 'coords') return proxyCoords;
+        if (key === 'toJSON') return () => ({ coords, timestamp: target.timestamp });
+        return Reflect.get(target, key, target);
+      }});
+    }
+    for (const name of ['getCurrentPosition', 'watchPosition']) method(Geolocation.prototype, name, original => function(success, error, options) {
+      if (!active() || typeof success !== 'function') return original.apply(this, arguments);
+      return original.call(this, value => success(position(value)), error, options);
+    });
+  }
+
+  for (const constructor of [globalThis.WebGLRenderingContext, globalThis.WebGL2RenderingContext]) {
+    if (!constructor) continue;
+    method(constructor.prototype, 'getParameter', original => function(param) {
+      const result = original.apply(this, arguments);
+      if (!active()) return result;
+      if (param === 0x9245 && result !== null) return state.gpuVendor;
+      if (param === 0x9246 && result !== null) return state.gpuRenderer;
+      return result;
+    });
+  }
+  // Voice and media-device APIs remain native. No mock objects or fixed IDs.
+
+  let seed = 0;
+  for (const char of location.origin) seed = (Math.imul(seed, 31) + char.charCodeAt(0)) >>> 0;
+  if (typeof HTMLCanvasElement !== 'undefined') {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    const createElement = Document.prototype.createElement;
+    function noisyCopy(canvas) {
+      if (!active() || !state.canvasNoise || !canvas.width || !canvas.height) return canvas;
+      if (!getContext.call(canvas, '2d')) return canvas;
+      const copy = createElement.call(document, 'canvas');
+      copy.width = canvas.width; copy.height = canvas.height;
+      const ctx = getContext.call(copy, '2d');
+      ctx.drawImage(canvas, 0, 0);
+      const x = seed % canvas.width, y = (seed >>> 3) % canvas.height;
+      const pixel = ctx.getImageData(x, y, 1, 1);
+      pixel.data[0] ^= 1;
+      ctx.putImageData(pixel, x, y);
+      return copy;
+    }
+    for (const name of ['toDataURL', 'toBlob']) method(HTMLCanvasElement.prototype, name, original => function() {
+      let source = this;
+      try { source = noisyCopy(this); } catch (e) { /* Native export retains taint and receiver errors. */ }
+      return original.apply(source, arguments);
+    });
+  }
+  function restoreAudio() {
+    for (const reference of audioBuffers) {
+      const buffer = reference.deref();
+      if (!buffer) { audioBuffers.delete(reference); continue; }
+      const samples = audioSamples.get(buffer);
+      for (const sample of samples.values()) {
+        if (sample.view.length && Object.is(sample.view[0], sample.noisy)) sample.view[0] = sample.raw;
+      }
+      samples.clear();
+    }
+  }
+  const nativeAudioData = globalThis.AudioBuffer && AudioBuffer.prototype.getChannelData;
+  const nativeChannelCount = globalThis.AudioBuffer && descriptor(AudioBuffer.prototype, 'numberOfChannels').get;
+  if (nativeAudioData) method(AudioBuffer.prototype, 'getChannelData', original => function(channel) {
+    if (!active() || !state.audioNoise || !arguments.length) return original.apply(this, arguments);
+    const count = nativeChannelCount.call(this);
+    const index = +channel >>> 0;
+    if (index >= count) return original.call(this, index);
+    let samples = audioSamples.get(this);
+    if (!samples) { samples = new Map(); audioSamples.set(this, samples); audioBuffers.add(new WeakRef(this)); }
+    const previous = samples.get(index);
+    // Reuse the live native view. Re-entering Brave's native getter can farble it again.
+    const data = previous && previous.view.length ? previous.view : original.call(this, index);
+    if (!data.length) return data;
+    if (previous && Object.is(data[0], previous.noisy)) { previous.view = data; return data; }
+    const raw = data[0];
+    if (!Number.isFinite(raw)) return data;
+    data[0] = raw + ((seed % 97) + 1) * 1e-9;
+    samples.set(index, { raw, noisy: data[0], view: data });
+    return data;
+  });
+
+  function update(token, next) {
+    if (token !== controlToken) return { ok: false };
+    restoreAudio();
+    state = next;
+    let failed = 0;
+    for (const p of patches) {
+      try { define(p.object, p.key, active() ? p.replacement : p.original); } catch (e) { failed++; }
+    }
+    return { ok: failed === 0, enabled: active(), failed };
+  }
+  define(globalThis, controlKey, { value: update, writable: false, configurable: false, enumerable: false });
+  return update(controlToken, initialState);
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = { installStealthEngine };

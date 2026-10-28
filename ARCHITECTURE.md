@@ -1,6 +1,13 @@
-# UmbraShark Architecture Overview 🛡️
+# UmbraShark Architecture Overview
 
 ## Core Subsystems
-- **Manifest V3 Core**: Central background service worker managing dynamic rule engines.
-- **Stealth Matrix Engine**: Injected MAIN world and isolated bridge scripts mitigating browser canvas/audio fingerprinting.
-- **UI Dashboard**: Flat control panel providing real-time telemetry and identity cloaking controls.
+- **Manifest V3 core**: The service worker owns settings validation, atomic dynamic header rules, session exceptions, WebRTC policy, and IP lookup requests. Disabling releases the extension's WebRTC policy override.
+- **Document initialization**: An ISOLATED content script requests initialization at `document_start`. The worker checks the browser-supplied tab/frame/document identity, reads storage, resolves ancestor-domain exceptions, and uses `chrome.scripting.executeScript` to install a self-contained MAIN-world function. Injection is asynchronous; earliest page scripts may observe native values before it completes.
+- **Authenticated updates**: Each document gets a random, immutable update handle and a separate secret held in its engine closure and extension session storage. Later worker injections call that handle directly. Profiles are not accepted from page DOM events or page storage. Calls are serialized per document, and stale document IDs are rejected. This protects the extension's update channel; it does not make page-owned JavaScript tamper-proof.
+- **Reversible hooks**: Original property descriptors are retained and restored on disable or whitelist bypass. Canvas exports modify a copy. Audio changes are tracked on reusable live views to avoid accumulation and repeated Brave farbling; restoring does not re-enter the native getter. Speech and media-device APIs remain native. Date local constructors, supported parsing, getters, and setters resolve wall time in the selected zone, choosing the earlier fold instant and advancing gaps. Unsupported legacy parser syntax and descriptive timezone names retain documented limits.
+- **WebRTC modes**: Strict mode requests `disable_non_proxied_udp`; compatibility requests `default_public_interface_only`. The UI explains connectivity tradeoffs. The worker awaits policy changes and releases its own override when disabled. Local dashboard checks never contact external STUN; the separately invoked live smoke test does.
+- **Network exceptions**: Header rules exclude destination and initiator domains; higher-priority allow rules cover whitelisted frame trees and already-open whitelisted top-level tabs. Session exceptions do not allow subsequent top-level navigations indiscriminately. Reload after editing exceptions.
+- **Dashboard and diagnostics**: The dashboard is an unmodified extension page. It asks the worker to inspect a selected HTTP/HTTPS page and its injectable frames. Assertions, skipped frames, effective WebRTC policy, and local ICE observations are shown separately; no authenticity score or detector-bypass claim is produced.
+- **Profile data**: Three schema-checked sample identities are exposed. The browser suite exercises their configured values in Edge, rather than certifying physical hardware or other operating systems. Existing saved profiles are not replaced.
+
+Run `node --test tests/*.test.cjs` for unit checks. See `README.md` for Playwright integration, native timezone comparison, and explicitly invoked live network smoke tests, including their disclosure and coverage limits.

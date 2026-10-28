@@ -2,459 +2,90 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UmbraShark // Flat Stealth Matrix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UmbraShark — Browser privacy</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
-<body class="theme-dark">
+<body>
   <div class="app-layout">
-    <!-- Top Navigation Bar -->
-    <header class="app-header">
-      <div class="brand-group">
-        <div class="brand-icon">
-          <!-- Flat Geometric Shark Fin Symbol -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19c2.5-7.5 7-14.5 13.5-14.5-2 4.5-.8 8.5 2.5 11.5-4 2-10 3-16 3z" fill="#10b981" fill-opacity="0.25" stroke="#10b981"/>
-            <circle cx="9.5" cy="11.5" r="1.5" fill="#10b981"/>
-          </svg>
+    <aside class="app-sidebar">
+      <a class="brand" href="dashboard.html" aria-label="UmbraShark overview">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="currentColor"/><path d="M6 21C9 13 14 6 21 6c-3 6-2 10 1 13-5 2-11 3-16 2Z" fill="white"/></svg>
+        <span>umbrashark<span class="brand-caption">Browser privacy</span></span>
+      </a>
+      <div class="nav-caption">WORKSPACE</div>
+      <nav class="nav-tabs" aria-label="Dashboard sections">
+        <button class="tab-btn active" data-tab="tab-overview" data-title="Connection & identity" aria-current="page"><span class="nav-symbol" aria-hidden="true">◉</span> Overview</button>
+        <button class="tab-btn" data-tab="tab-studio" data-title="Profile settings"><span class="nav-symbol" aria-hidden="true">☷</span> Profile settings</button>
+        <button class="tab-btn" data-tab="tab-rules" data-title="Site exceptions"><span class="nav-symbol" aria-hidden="true">⊘</span> Site exceptions</button>
+        <button class="tab-btn" data-tab="tab-diagnostics" data-title="Check your setup"><span class="nav-symbol" aria-hidden="true">⌁</span> Diagnostics</button>
+      </nav>
+      <div class="sidebar-footer"><span class="version">VERSION 1.0.0</span><p>Less exposed.<br>More in your control.</p><a href="https://github.com/MuhammadFrz/UMBRASHARK" target="_blank" rel="noreferrer">Source & documentation ↗</a></div>
+    </aside>
+    <div class="workspace">
+      <header class="app-header">
+        <div><div class="eyebrow">UMBRASHARK / CONTROL CENTER</div><h1 id="pageTitle">Connection & identity</h1><p class="page-description">Manage the details your browser shares with websites.</p></div>
+        <div class="header-actions">
+          <div class="status-indicator" id="statusPill"><span class="status-dot"></span><span id="statusLabel">Overrides enabled</span></div>
+          <label class="switch-container"><input type="checkbox" id="masterToggle" aria-label="Enable browser identity overrides" checked><span class="switch-slider"></span></label>
         </div>
-        <div class="brand-info">
-          <h1 class="brand-title">UMBRASHARK <span class="brand-sub">// FLAT STEALTH MATRIX</span></h1>
-          <span class="brand-version">v1.0.0-hardened</span>
-        </div>
-      </div>
-
-      <div class="header-actions">
-        <div class="status-indicator" id="statusPill">
-          <span class="status-dot"></span>
-          <span class="status-label" id="statusLabel">CLOAK ACTIVE</span>
-        </div>
-
-        <button class="btn btn-secondary" id="btnRollRandom" title="Instantly roll a completely random, coherent identity">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <circle cx="15.5" cy="8.5" r="1.5"/>
-            <circle cx="15.5" cy="15.5" r="1.5"/>
-            <circle cx="8.5" cy="15.5" r="1.5"/>
-            <circle cx="12" cy="12" r="1.5"/>
-          </svg>
-          Roll Random Identity
-        </button>
-
-        <label class="switch-container" title="Toggle Cloak on or off">
-          <input type="checkbox" id="masterToggle" checked>
-          <span class="switch-slider"></span>
-        </label>
-      </div>
-    </header>
-
-    <!-- Navigation Tabs -->
-    <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="tab-overview">01 // OVERVIEW</button>
-      <button class="tab-btn" data-tab="tab-studio">02 // IDENTITY STUDIO</button>
-      <button class="tab-btn" data-tab="tab-rules">03 // DOMAIN RULES</button>
-      <button class="tab-btn" data-tab="tab-diagnostics">04 // DIAGNOSTICS & TESTS</button>
-    </nav>
-
-    <!-- Main Content Area -->
-    <main class="app-main">
-
-      <!-- TAB 1: OVERVIEW -->
-      <section id="tab-overview" class="tab-pane active">
-        <div class="overview-grid">
-          <!-- Active Persona Card -->
-          <div class="card card-hero">
-            <div class="card-header">
-              <span class="badge">ACTIVE IDENTITY</span>
-              <span class="mono-meta" id="overviewPersonaId">win11-chrome-rtx4080-ny</span>
+      </header>
+      <main class="app-main">
+        <section id="tab-overview" class="tab-pane active" aria-label="Overview">
+          <section class="connection-panel" aria-labelledby="connectionTitle">
+            <div class="connection-heading"><div class="connection-icon" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7h14M5 17h14"/></svg></div><span class="badge-subtle">IP ALIGNMENT</span></div>
+            <div class="connection-intro"><div><h2 id="connectionTitle">Start with your connection.</h2><p>Align your timezone and approximate location with your public IP.<br class="desktop-break"> Preview the changes, then make them yours.</p></div><button class="btn btn-primary" id="btnDetectIp">Detect IP location <span aria-hidden="true">↗</span></button></div>
+            <p class="provider-note">On request, ipwho.is receives your public IP. No background lookups. <a href="https://ipwhois.io/privacy" target="_blank" rel="noreferrer">Provider privacy ↗</a></p>
+            <p id="ipStatus" class="ip-status" role="status" aria-live="polite">Ready when you are. Detection does not change your profile.</p>
+            <div id="ipPreview" class="ip-preview" hidden>
+              <div class="ip-preview-heading"><h3>Detected connection</h3><span id="ipDetectedAt" class="mono-meta"></span></div>
+              <dl class="connection-details"><div><dt>PUBLIC IP</dt><dd id="ipAddress"></dd></div><div><dt>APPROXIMATE LOCATION</dt><dd id="ipLocation"></dd></div><div><dt>TIMEZONE</dt><dd id="ipTimezone"></dd></div><div><dt>SUGGESTED LANGUAGE</dt><dd id="ipLanguage"></dd></div></dl>
+              <label class="language-choice"><input id="ipMatchLanguage" type="checkbox" checked><span>Also use the suggested language<small>A country-based suggestion. Your language preference may differ.</small></span></label>
+              <div class="ip-actions"><button class="btn btn-primary" id="btnApplyIp">Apply to profile</button><button class="btn btn-secondary" id="btnUndoIp" hidden>Undo alignment</button><span>Browser, GPU, and display settings stay as configured.</span></div>
+              <p class="field-hint">Approximate IP location can be wrong. This does not change your public IP or guarantee that websites consider the profile authentic. Detect again after changing your VPN or connection.</p>
             </div>
-            <div class="card-body">
-              <h2 class="hero-name" id="overviewPersonaName">Alienware RTX 4080 • Windows 11 Chrome (New York)</h2>
-              <div class="hero-metrics">
-                <div class="metric-item">
-                  <span class="metric-label">OS & PLATFORM</span>
-                  <span class="metric-val" id="overviewOsVal">Windows 11 (Win32)</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">TIMEZONE</span>
-                  <span class="metric-val" id="overviewTzVal">America/New_York (UTC-4)</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">GPU ACCELERATOR</span>
-                  <span class="metric-val" id="overviewGpuVal">NVIDIA GeForce RTX 4080</span>
-                </div>
-                <div class="metric-item">
-                  <span class="metric-label">LOCALE / LANG</span>
-                  <span class="metric-val" id="overviewLocaleVal">en-US, en</span>
-                </div>
-              </div>
-            </div>
-            <div class="card-footer">
-              <div class="quick-preset-selector">
-                <label for="quickPersonaSelect">QUICK PERSONA PRESET:</label>
-                <select id="quickPersonaSelect" class="form-select"></select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Live Signature Parameters Table -->
-          <div class="card">
-            <div class="card-header">
-              <h3>ACTIVE PARAMETER SIGNATURE</h3>
-              <span class="mono-meta">DOM & HTTP HEADERS SYNCHRONIZED</span>
-            </div>
-            <div class="card-body p-0">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>VECTOR</th>
-                    <th>ACTIVE SPOOFED VALUE</th>
-                    <th>INTEGRITY STATUS</th>
-                  </tr>
-                </thead>
-                <tbody id="overviewTableBody">
-                  <!-- Populated by JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2: IDENTITY STUDIO -->
-      <section id="tab-studio" class="tab-pane">
-        <div class="studio-layout">
-          <div class="studio-sidebar">
-            <div class="sidebar-block">
-              <label class="field-label">PERSONA PRESET VAULT (24+ COHERENT IDENTITIES)</label>
-              <select id="studioPersonaSelect" class="form-select form-select-lg"></select>
-              <p class="field-hint">Selecting a persona automatically synchronizes all parameters for 100% matrix consistency.</p>
-            </div>
-
-            <div class="sidebar-block">
-              <button class="btn btn-primary btn-block" id="btnSaveConfig">
-                Apply & Save Profile
-              </button>
-              <button class="btn btn-secondary btn-block" id="btnResetDefault">
-                Reset to Default
-              </button>
-            </div>
-          </div>
-
+          </section>
+          <div class="section-heading"><div><span class="eyebrow">YOUR CONFIGURATION</span><h2>Active profile</h2></div><button class="btn btn-secondary" id="btnRollRandom" title="Choose and save another sample profile">Switch sample profile</button></div>
+          <section class="card card-hero" aria-label="Active profile summary">
+            <div class="card-header"><span class="badge">CONFIGURED PROFILE</span><span class="mono-meta" id="overviewPersonaId"></span></div>
+            <div class="card-body"><h3 class="hero-name" id="overviewPersonaName"></h3><div class="hero-metrics"><div class="metric-item"><span class="metric-label">PLATFORM</span><span class="metric-val" id="overviewOsVal"></span></div><div class="metric-item"><span class="metric-label">TIMEZONE</span><span class="metric-val" id="overviewTzVal"></span></div><div class="metric-item"><span class="metric-label">GRAPHICS</span><span class="metric-val" id="overviewGpuVal"></span></div><div class="metric-item"><span class="metric-label">LANGUAGES</span><span class="metric-val" id="overviewLocaleVal"></span></div></div></div>
+            <div class="card-footer quick-preset-selector"><label for="quickPersonaSelect">Sample profile</label><select id="quickPersonaSelect" class="form-select"></select></div>
+          </section>
+          <section class="card parameter-section"><div class="card-header"><h3>Profile details</h3><span class="mono-meta">Configured values · verify on a regular webpage</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>PROPERTY</th><th>CONFIGURED VALUE</th><th>STATE</th></tr></thead><tbody id="overviewTableBody"></tbody></table></div></section>
+        </section>
+        <section id="tab-studio" class="tab-pane" aria-label="Profile settings">
+          <div class="studio-layout"><aside class="studio-sidebar"><div class="sidebar-block"><label for="studioPersonaSelect" class="field-label">Sample profile</label><select id="studioPersonaSelect" class="form-select"></select><p class="field-hint">Start with a sample, then adjust the details below. Samples are not verified device identities.</p></div><div class="sidebar-block save-block"><button class="btn btn-primary btn-block" id="btnSaveConfig">Save profile</button><button class="btn btn-secondary btn-block" id="btnResetDefault">Reset to default</button><p class="field-hint" id="saveStatus" role="status">Changes here are saved when you apply them.</p></div></aside>
           <div class="studio-form-container">
-            <!-- Section A: Browser Version & User Agent -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>01 // BROWSER VERSION & USER-AGENT SAMPLES</h3>
-                <span class="badge-subtle">SAMPLE LIST</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="form-group">
-                  <label class="field-label" for="presetUaSelect">BROWSER VERSION PRESET (CHROME / BRAVE / EDGE):</label>
-                  <select id="presetUaSelect" class="form-select"></select>
-                </div>
-                <div class="form-group">
-                  <label class="field-label" for="customUaInput">USER-AGENT STRING (HTTP & NAVIGATOR):</label>
-                  <textarea id="customUaInput" class="form-textarea" rows="2"></textarea>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="customPlatformInput">NAVIGATOR.PLATFORM:</label>
-                    <input type="text" id="customPlatformInput" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="customChPlatformInput">CLIENT HINTS PLATFORM:</label>
-                    <input type="text" id="customChPlatformInput" class="form-input">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section B: Timezone & Geolocation -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>02 // TIMEZONE & GEOLOCATION SYNCHRONIZATION</h3>
-                <span class="badge-subtle">ANTI-LEAK</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="form-group">
-                  <label class="field-label" for="presetTimezoneSelect">GLOBAL TIMEZONE PRESET (36+ WORLD METROS):</label>
-                  <select id="presetTimezoneSelect" class="form-select"></select>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="customTzInput">IANA TIMEZONE ID:</label>
-                    <input type="text" id="customTzInput" class="form-input" readonly>
-                  </div>
-                  <div class="form-col">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                      <label class="field-label" for="customTzOffset" style="margin-bottom: 0;">UTC OFFSET (MINUTES):</label>
-                      <button type="button" class="btn btn-secondary btn-xs" id="btnAutoFixTimezoneStudio" style="padding: 2px 6px; font-size: 10px;">⚡ Auto-Align Offset</button>
-                    </div>
-                    <input type="number" id="customTzOffset" class="form-input">
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="customLatInput">SPOOFED LATITUDE:</label>
-                    <input type="number" step="0.0001" id="customLatInput" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="customLonInput">SPOOFED LONGITUDE:</label>
-                    <input type="number" step="0.0001" id="customLonInput" class="form-input">
-                  </div>
-                </div>
-                <p class="field-hint">Synchronizes <code>Intl.DateTimeFormat</code>, <code>Date.prototype.getTimezoneOffset</code>, Date formatting strings, and <code>navigator.geolocation</code>.</p>
-              </div>
-            </div>
-
-            <!-- Section C: Keyboard & Language -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>03 // KEYBOARD & LOCALE</h3>
-                <span class="badge-subtle">HTTP & DOM</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="form-group">
-                  <label class="field-label" for="presetLangSelect">LANGUAGE & KEYBOARD PRESET (25+ COMBINATIONS):</label>
-                  <select id="presetLangSelect" class="form-select"></select>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="customLocaleInput">PRIMARY LOCALE (NAVIGATOR.LANGUAGE):</label>
-                    <input type="text" id="customLocaleInput" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="customAcceptLangInput">ACCEPT-LANGUAGE HTTP HEADER:</label>
-                    <input type="text" id="customAcceptLangInput" class="form-input">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section D: WebGL GPU Engine -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>04 // WEBGL GPU ACCELERATOR</h3>
-                <span class="badge-subtle">20+ GPUS</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="form-group">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label class="field-label" for="presetGpuSelect" style="margin-bottom: 0;">GPU HARDWARE PRESET (NVIDIA / AMD / INTEL / APPLE):</label>
-                    <button type="button" class="btn btn-secondary btn-xs" id="btnAutoFixGpuStudio" style="padding: 2px 6px; font-size: 10px;">⚡ Auto-Match to OS</button>
-                  </div>
-                  <select id="presetGpuSelect" class="form-select"></select>
-                </div>
-                <div class="form-group">
-                  <label class="field-label" for="customGpuVendorInput">UNMASKED VENDOR (0x9245):</label>
-                  <input type="text" id="customGpuVendorInput" class="form-input">
-                </div>
-                <div class="form-group">
-                  <label class="field-label" for="customGpuRendererInput">UNMASKED RENDERER (0x9246):</label>
-                  <input type="text" id="customGpuRendererInput" class="form-input">
-                </div>
-              </div>
-            </div>
-
-            <!-- Section E: Screen & Hardware Metrics -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>05 // DISPLAY METRICS & HARDWARE SPECS</h3>
-                <span class="badge-subtle">SCREEN & CPU</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="form-group">
-                  <label class="field-label" for="presetScreenSelect">DISPLAY RESOLUTION PRESET (18+ SCREENS):</label>
-                  <select id="presetScreenSelect" class="form-select"></select>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="customScreenWidth">WIDTH (PX):</label>
-                    <input type="number" id="customScreenWidth" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="customScreenHeight">HEIGHT (PX):</label>
-                    <input type="number" id="customScreenHeight" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="customDpr">DEVICE PIXEL RATIO:</label>
-                    <input type="number" step="0.25" id="customDpr" class="form-input">
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="field-label" for="presetCpuSelect">CPU LOGICAL CORES:</label>
-                    <select id="presetCpuSelect" class="form-select"></select>
-                  </div>
-                  <div class="form-col">
-                    <label class="field-label" for="presetMemorySelect">DEVICE MEMORY (RAM GB):</label>
-                    <select id="presetMemorySelect" class="form-select"></select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section F: Advanced Entropy Shields -->
-            <div class="studio-card">
-              <div class="studio-card-header">
-                <h3>06 // ADVANCED ENTROPY SHIELDS</h3>
-                <span class="badge-subtle">MICRO-NOISE</span>
-              </div>
-              <div class="studio-card-body">
-                <div class="toggle-list">
-                  <label class="toggle-row">
-                    <div class="toggle-info">
-                      <span class="toggle-title">Deterministic Canvas Salt</span>
-                      <span class="toggle-desc">Injects origin-consistent 1-bit salt into Canvas 2D buffers to alter hashes without frame flutter.</span>
-                    </div>
-                    <input type="checkbox" id="toggleCanvasNoise" checked>
-                  </label>
-
-                  <label class="toggle-row">
-                    <div class="toggle-info">
-                      <span class="toggle-title">AudioContext Micro-Jitter</span>
-                      <span class="toggle-desc">Adds deterministic micro-variance to audio channel buffers to neutralize audio fingerprinting.</span>
-                    </div>
-                    <input type="checkbox" id="toggleAudioNoise" checked>
-                  </label>
-
-                  <label class="toggle-row">
-                    <div class="toggle-info">
-                      <span class="toggle-title">WebRTC IP Shield</span>
-                      <span class="toggle-desc">Enforces default public interface policy to prevent local 192.168.x.x IP address leakage.</span>
-                    </div>
-                    <input type="checkbox" id="toggleWebRtcProtect" checked>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: DOMAIN RULES -->
-      <section id="tab-rules" class="tab-pane">
-        <div class="rules-container">
-          <div class="card">
-            <div class="card-header">
-              <h3>WHITELISTED DOMAINS</h3>
-              <span class="badge-subtle">BYPASS RULES</span>
-            </div>
-            <div class="card-body">
-              <p class="section-desc">
-                Domains added to this list will bypass all spoofing and use your native browser identity. Useful for banking, single-sign-on portals, and trusted services where device continuity is required.
-              </p>
-
-              <div class="whitelist-input-row">
-                <input type="text" id="whitelistInput" class="form-input" placeholder="e.g. bank.com or accounts.google.com">
-                <button class="btn btn-primary" id="btnAddWhitelist">Add Domain</button>
-              </div>
-
-              <div class="whitelist-list" id="whitelistContainer">
-                <!-- Populated by JS -->
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: DIAGNOSTICS & TESTS -->
-      <section id="tab-diagnostics" class="tab-pane">
-        <div class="diagnostics-container">
-          <div class="card">
-            <div class="card-header">
-              <div class="diagnostics-header-left">
-                <h3>REAL-TIME STEALTH TEST SUITE</h3>
-                <span class="mono-meta">AUTOMATED HEURISTIC INTEGRITY CHECK</span>
-              </div>
-              <button class="btn btn-secondary" id="btnRunDiagnostics">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 4v6h-6M1 20v-6h6"/>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                </svg>
-                Run Diagnostics
-              </button>
-            </div>
-            <div class="card-body p-0">
-              <div class="diagnostics-score-banner">
-                <div class="score-box">
-                  <span class="score-number" id="diagScore">--</span>
-                  <span class="score-label">STEALTH INTEGRITY SCORE</span>
-                </div>
-                <div class="score-summary" id="diagSummary">
-                  Click "Run Diagnostics" to execute in-browser integrity verification checks against CreepJS and FingerprintJS heuristics.
-                </div>
-                <button class="btn btn-primary" id="btnAutoFixAll" style="white-space: nowrap; margin-left: auto;">
-                  ⚡ Auto-Fix All Issues
-                </button>
-              </div>
-
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>TEST NAME</th>
-                    <th>HEURISTIC / VECTOR</th>
-                    <th>OBSERVED RESULT</th>
-                    <th>STATUS</th>
-                    <th>ACTION</th>
-                  </tr>
-                </thead>
-                <tbody id="diagTableBody">
-                  <!-- Populated by JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- External Fingerprint Checker Links -->
-          <div class="card mt-4">
-            <div class="card-header">
-              <h3>EXTERNAL VERIFICATION HUBS</h3>
-              <span class="mono-meta">TEST YOUR EXTENSION LIVE IN WILD</span>
-            </div>
-            <div class="card-body">
-              <div class="external-links-grid">
-                <a href="https://browserleaks.com/javascript" target="_blank" class="ext-link-card">
-                  <span class="ext-title">BrowserLeaks.com &rarr;</span>
-                  <span class="ext-desc">Test JavaScript, User-Agent, Screen, and Timezone parameters.</span>
-                </a>
-                <a href="https://browserleaks.com/webgl" target="_blank" class="ext-link-card">
-                  <span class="ext-title">BrowserLeaks WebGL &rarr;</span>
-                  <span class="ext-desc">Verify unmasked GPU vendor, renderer, and shader precision.</span>
-                </a>
-                <a href="https://browserleaks.com/canvas" target="_blank" class="ext-link-card">
-                  <span class="ext-title">BrowserLeaks Canvas &rarr;</span>
-                  <span class="ext-desc">Inspect Canvas 2D signature hash and entropy salt.</span>
-                </a>
-                <a href="https://creepjs-fork.vercel.app/" target="_blank" class="ext-link-card">
-                  <span class="ext-title">CreepJS &rarr;</span>
-                  <span class="ext-desc">Advanced anti-detect verification: prototype tampering & native toString.</span>
-                </a>
-                <a href="https://pixelscan.net/" target="_blank" class="ext-link-card">
-                  <span class="ext-title">Pixelscan.net &rarr;</span>
-                  <span class="ext-desc">Comprehensive browser authenticity & fraud heuristic score.</span>
-                </a>
-                <a href="https://fingerprint.com/demo/" target="_blank" class="ext-link-card">
-                  <span class="ext-title">Fingerprint.com Demo &rarr;</span>
-                  <span class="ext-desc">Commercial tracking engine test for visitor identification.</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- Bottom Notification Toast -->
-    <div class="toast" id="toast">Settings applied successfully.</div>
+            <section class="studio-card"><div class="studio-card-header"><h2>Browser identity</h2><span class="badge-subtle">HTTP + NAVIGATOR</span></div><div class="studio-card-body">
+              <div class="form-group"><label class="field-label" for="presetUaSelect">Browser sample</label><select id="presetUaSelect" class="form-select"></select></div>
+              <div class="form-group"><label class="field-label" for="customUaInput">User-agent string</label><textarea id="customUaInput" class="form-textarea" rows="3" spellcheck="false"></textarea></div>
+              <div class="form-row"><div class="form-col"><label class="field-label" for="customPlatformInput">Navigator platform</label><input id="customPlatformInput" class="form-input"></div><div class="form-col"><label class="field-label" for="customChPlatformInput">Client Hints platform</label><input id="customChPlatformInput" class="form-input"></div></div>
+            </div></section>
+            <section class="studio-card"><div class="studio-card-header"><h2>Location & timezone</h2><span class="badge-subtle">REGIONAL SETTINGS</span></div><div class="studio-card-body">
+              <div class="form-group"><label class="field-label" for="presetTimezoneSelect">City sample</label><select id="presetTimezoneSelect" class="form-select"></select></div>
+              <div class="form-row"><div class="form-col"><label class="field-label" for="customTzInput">IANA timezone</label><input id="customTzInput" class="form-input" readonly></div><div class="form-col"><label class="field-label" for="customTzOffset">Offset in minutes</label><input type="number" id="customTzOffset" class="form-input"></div></div><button class="btn btn-secondary btn-xs" id="btnAutoFixTimezoneStudio">Recalculate current offset</button>
+              <div class="form-row coordinates"><div class="form-col"><label class="field-label" for="customLatInput">Latitude</label><input type="number" step="any" min="-90" max="90" id="customLatInput" class="form-input"></div><div class="form-col"><label class="field-label" for="customLonInput">Longitude</label><input type="number" step="any" min="-180" max="180" id="customLonInput" class="form-input"></div></div><p class="field-hint">Use IP alignment in Overview to detect a location outside these city samples.</p>
+            </div></section>
+            <section class="studio-card"><div class="studio-card-header"><h2>Language & locale</h2></div><div class="studio-card-body"><div class="form-group"><label class="field-label" for="presetLangSelect">Language sample</label><select id="presetLangSelect" class="form-select"></select></div><div class="form-row"><div class="form-col"><label class="field-label" for="customLocaleInput">Primary locale</label><input id="customLocaleInput" class="form-input"></div><div class="form-col"><label class="field-label" for="customAcceptLangInput">Accept-Language header</label><input id="customAcceptLangInput" class="form-input"></div></div></div></section>
+            <section class="studio-card"><div class="studio-card-header"><h2>Graphics</h2><button class="btn btn-secondary btn-xs" id="btnAutoFixGpuStudio">Choose OS sample</button></div><div class="studio-card-body"><div class="form-group"><label class="field-label" for="presetGpuSelect">GPU sample</label><select id="presetGpuSelect" class="form-select"></select></div><div class="form-group"><label class="field-label" for="customGpuVendorInput">Reported vendor</label><input id="customGpuVendorInput" class="form-input"></div><div class="form-group"><label class="field-label" for="customGpuRendererInput">Reported renderer</label><input id="customGpuRendererInput" class="form-input"></div></div></section>
+            <section class="studio-card"><div class="studio-card-header"><h2>Display & hardware</h2></div><div class="studio-card-body"><div class="form-group"><label class="field-label" for="presetScreenSelect">Display sample</label><select id="presetScreenSelect" class="form-select"></select></div><div class="form-row"><div class="form-col"><label class="field-label" for="customScreenWidth">Width</label><input type="number" min="1" id="customScreenWidth" class="form-input"></div><div class="form-col"><label class="field-label" for="customScreenHeight">Height</label><input type="number" min="1" id="customScreenHeight" class="form-input"></div><div class="form-col"><label class="field-label" for="customDpr">Pixel ratio</label><input type="number" min="0.25" step="0.25" id="customDpr" class="form-input"></div></div><div class="form-row"><div class="form-col"><label class="field-label" for="presetCpuSelect">Logical CPU cores</label><select id="presetCpuSelect" class="form-select"></select></div><div class="form-col"><label class="field-label" for="presetMemorySelect">Device memory</label><select id="presetMemorySelect" class="form-select"></select></div></div></div></section>
+            <section class="studio-card"><div class="studio-card-header"><h2>Additional controls</h2><span class="badge-subtle">VERIFY IN YOUR BROWSER</span></div><div class="studio-card-body toggle-list">
+              <label class="toggle-row"><span class="toggle-info"><span class="toggle-title">Canvas noise</span><span class="toggle-desc">Apply stable noise to a copy of Canvas 2D exports; source pixels stay unchanged.</span></span><input type="checkbox" id="toggleCanvasNoise" checked></label>
+              <label class="toggle-row"><span class="toggle-info"><span class="toggle-title">Audio noise</span><span class="toggle-desc">Apply each noise value once. Restore untouched samples when disabled.</span></span><input type="checkbox" id="toggleAudioNoise" checked></label>
+              <label class="toggle-row"><span class="toggle-info"><span class="toggle-title">Restrict WebRTC networking</span><span class="toggle-desc">Strict mode blocks non-proxied UDP. This can affect calls without a suitable proxy or relay.</span></span><input type="checkbox" id="toggleWebRtcProtect" checked></label><div class="form-group"><label class="field-label" for="webRtcPolicySelect">WebRTC routing policy</label><select id="webRtcPolicySelect" class="form-select"><option value="disable_non_proxied_udp">Strict — block direct UDP (recommended for privacy)</option><option value="default_public_interface_only">Compatibility — public interface only (may expose addresses)</option></select><p class="field-hint">Compatibility mode favors connectivity. Neither mode changes your public IP for ordinary web requests.</p></div>
+            </div></section>
+          </div></div>
+        </section>
+        <section id="tab-rules" class="tab-pane" aria-label="Site exceptions"><div class="rules-container"><div class="section-heading"><div><span class="eyebrow">PER-SITE CONTROL</span><h2>Make room for trusted sites.</h2></div></div><p class="section-desc">Skip supported page overrides for these domains and their subdomains. Page bypass includes descendant frames. Header rules exclude matching destinations and initiators and allow whitelisted frame trees. Reload pages after changing exceptions. WebRTC policy remains browser-wide.</p><label class="field-label" for="whitelistInput">Domain</label><div class="whitelist-input-row"><input id="whitelistInput" class="form-input" placeholder="example.com" autocomplete="off" spellcheck="false"><button class="btn btn-primary" id="btnAddWhitelist">Add exception</button></div><div class="whitelist-list" id="whitelistContainer"></div></div></section>
+        <section id="tab-diagnostics" class="tab-pane" aria-label="Diagnostics"><div class="section-heading"><div><span class="eyebrow">LOCAL CHECKS</span><h2>A closer look at your setup.</h2></div><button class="btn btn-primary" id="btnRunDiagnostics">Run checks</button></div><p class="section-desc">Choose a regular webpage to inspect it and its frames. Checks measure behavior, not authenticity. No external STUN server is contacted.</p><div class="whitelist-input-row"><div class="form-col"><label class="field-label" for="diagnosticTabSelect">Webpage to inspect</label><select id="diagnosticTabSelect" class="form-select"></select></div><button class="btn btn-secondary" id="btnRefreshDiagnosticTabs">Refresh pages</button></div><section class="card"><div class="diagnostics-score-banner"><div class="score-box"><span class="score-number" id="diagScore">—</span><span class="score-label">PAGE ASSERTIONS PASSED</span></div><div class="score-summary" id="diagSummary" role="status">Select a regular webpage, then run checks.</div><button class="btn btn-secondary" id="btnAutoFixAll">Align timezone & GPU</button></div><div class="table-scroll"><table class="data-table"><thead><tr><th>CHECK</th><th>EXPECTATION</th><th>OBSERVED</th><th>RESULT</th><th>FRAME / SCOPE</th></tr></thead><tbody id="diagTableBody"></tbody></table></div></section><section class="external-section"><h3>Inspect on a regular webpage</h3><p class="section-desc">Independent tools for manual checks. Results depend on your browser and settings.</p><div class="external-links-grid"><a href="https://browserleaks.com/javascript" target="_blank" rel="noreferrer" class="ext-link-card"><span class="ext-title">BrowserLeaks ↗</span><span class="ext-desc">Navigator, timezone & display</span></a><a href="https://browserleaks.com/webrtc" target="_blank" rel="noreferrer" class="ext-link-card"><span class="ext-title">WebRTC ↗</span><span class="ext-desc">Inspect exposed ICE candidates</span></a><a href="https://browserleaks.com/webgl" target="_blank" rel="noreferrer" class="ext-link-card"><span class="ext-title">WebGL ↗</span><span class="ext-desc">Reported graphics parameters</span></a></div></section></section>
+      </main>
+      <footer class="workspace-footer"><span>Privacy is a configuration, not a score.</span><span>UmbraShark · 1.0.0</span></footer>
+    </div>
   </div>
-
-  <script src="/content/stealth_injected.js"></script>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/data/profiles.js"></script>
+  <script src="/data/ip_alignment.js"></script>
+  <script src="/data/settings.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

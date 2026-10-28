@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleCanvasNoise = document.getElementById('toggleCanvasNoise');
   const toggleAudioNoise = document.getElementById('toggleAudioNoise');
   const toggleWebRtcProtect = document.getElementById('toggleWebRtcProtect');
+  const webRtcPolicySelect = document.getElementById('webRtcPolicySelect');
 
   // Whitelist Elements
   const whitelistInput = document.getElementById('whitelistInput');
@@ -84,11 +85,106 @@ document.addEventListener('DOMContentLoaded', async () => {
   let canvasNoise = true;
   let audioNoise = true;
   let webRtcProtect = true;
+  let webRtcPolicy = 'disable_non_proxied_udp';
+
+  const btnDetectIp = document.getElementById('btnDetectIp');
+  const btnApplyIp = document.getElementById('btnApplyIp');
+  const btnUndoIp = document.getElementById('btnUndoIp');
+  const ipStatus = document.getElementById('ipStatus');
+  const ipPreview = document.getElementById('ipPreview');
+  const ipMatchLanguage = document.getElementById('ipMatchLanguage');
+  let detectedLocation = null;
+  let profileBeforeAlignment = null;
+
+  function setIpStatus(message, state = '') {
+    ipStatus.textContent = message;
+    ipStatus.dataset.state = state;
+  }
+
+  btnDetectIp.addEventListener('click', async () => {
+    btnDetectIp.disabled = true;
+    btnDetectIp.textContent = 'Detecting connection…';
+    btnApplyIp.disabled = true;
+    detectedLocation = null;
+    setIpStatus('Looking up your public connection with ipwho.is…');
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'DETECT_IP_LOCATION' });
+      if (!response || !response.ok) throw new Error(response && response.error || 'No response from the extension. Reload it and try again.');
+      detectedLocation = response.location;
+      const details = window.IP_ALIGNMENT.timezoneDetails(detectedLocation.timezone);
+      document.getElementById('ipAddress').textContent = detectedLocation.ip;
+      document.getElementById('ipLocation').textContent = [detectedLocation.city, detectedLocation.country].filter(Boolean).join(', ');
+      document.getElementById('ipTimezone').textContent = detectedLocation.timezone + ' · ' + formatOffset(details.offset);
+      document.getElementById('ipLanguage').textContent = detectedLocation.suggestedLocale;
+      document.getElementById('ipDetectedAt').textContent = 'Detected ' + new Date(detectedLocation.detectedAt).toLocaleTimeString();
+      ipPreview.hidden = false;
+      btnApplyIp.disabled = false;
+      setIpStatus('Location detected. Review the details below before applying.', 'success');
+    } catch (error) {
+      setIpStatus(error.message + ' Your saved profile was not changed.', 'error');
+    } finally {
+      btnDetectIp.disabled = false;
+      btnDetectIp.textContent = 'Detect again ↗';
+    }
+  });
+
+  btnApplyIp.addEventListener('click', async () => {
+    if (!detectedLocation) return;
+    if (Date.now() - detectedLocation.detectedAt > 5 * 60 * 1000) {
+      setIpStatus('This preview is over five minutes old. Detect again before applying.', 'error');
+      btnApplyIp.disabled = true;
+      return;
+    }
+    btnApplyIp.disabled = true;
+    const previous = structuredClone(currentProfile);
+    try {
+      const next = window.IP_ALIGNMENT.alignProfile(currentProfile, detectedLocation, ipMatchLanguage.checked);
+      // Save once before updating the UI. Detection alone never writes settings.
+      await chrome.storage.local.set({ cloakProfile: next });
+      currentProfile = next;
+      profileBeforeAlignment = previous;
+      btnUndoIp.hidden = false;
+      updateUIFromState();
+      setIpStatus('Profile aligned. Reload open webpages to check the new settings.' + (isEnabled ? '' : ' Overrides are currently paused.'), 'success');
+      showToast('IP location applied to your profile.');
+    } catch (error) {
+      setIpStatus('Could not save alignment. ' + error.message, 'error');
+    } finally {
+      btnApplyIp.disabled = false;
+    }
+  });
+
+  btnUndoIp.addEventListener('click', async () => {
+    if (!profileBeforeAlignment) return;
+    btnUndoIp.disabled = true;
+    try {
+      await chrome.storage.local.set({ cloakProfile: profileBeforeAlignment });
+      currentProfile = profileBeforeAlignment;
+      profileBeforeAlignment = null;
+      btnUndoIp.hidden = true;
+      updateUIFromState();
+      setIpStatus('Previous profile restored. Reload open webpages to check it.', 'success');
+    } catch (error) {
+      setIpStatus('Could not restore the previous profile. ' + error.message, 'error');
+    } finally { btnUndoIp.disabled = false; }
+  });
+
+  function formatOffset(offset) {
+    const minutes = Math.abs(offset);
+    return 'UTC' + (offset > 0 ? '−' : '+') + String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+  }
 
   // --------------------------------------------------------------------------
   // 1. POPULATE DROPDOWNS
   // --------------------------------------------------------------------------
   function populateDropdowns() {
+    quickPersonaSelect.add(new Option('Custom profile', ''));
+    studioPersonaSelect.add(new Option('Custom profile', ''));
+    presetTimezoneSelect.add(new Option('Custom / IP-detected timezone', ''));
+    presetLangSelect.add(new Option('Custom / IP-suggested locale', ''));
+    presetUaSelect.add(new Option('Custom browser values', ''));
+    presetGpuSelect.add(new Option('Custom graphics values', ''));
+    presetScreenSelect.add(new Option('Custom display values', ''));
     // Personas
     presets.IDENTITY_PRESETS.forEach(p => {
       const opt1 = new Option(p.name, p.id);
@@ -139,17 +235,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadState() {
     const data = await chrome.storage.local.get([
       'cloakProfile', 'cloakEnabled', 'whitelist',
-      'canvasNoise', 'audioNoise', 'webRtcProtect'
+      'canvasNoise', 'audioNoise', 'webRtcProtect', 'webRtcPolicy'
     ]);
 
     if (data.cloakProfile) {
       currentProfile = data.cloakProfile;
+    }
+    if (!Number.isFinite(currentProfile.offset)) {
+      currentProfile.offset = presets.calculateExactTimezoneOffset(currentProfile.timezone);
+      currentProfile.timezoneAbbr = presets.getTimezoneAbbr(currentProfile.timezone);
     }
     isEnabled = data.cloakEnabled !== false;
     whitelist = data.whitelist || ['localhost', '127.0.0.1'];
     canvasNoise = data.canvasNoise !== false;
     audioNoise = data.audioNoise !== false;
     webRtcProtect = data.webRtcProtect !== false;
+    webRtcPolicy = data.webRtcPolicy === 'default_public_interface_only' ? data.webRtcPolicy : 'disable_non_proxied_udp';
 
     updateUIFromState();
   }
@@ -163,52 +264,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggleCanvasNoise.checked = canvasNoise;
     toggleAudioNoise.checked = audioNoise;
     toggleWebRtcProtect.checked = webRtcProtect;
+    webRtcPolicySelect.value = webRtcPolicy;
+    webRtcPolicySelect.disabled = !webRtcProtect;
 
     if (isEnabled) {
       statusPill.classList.remove('disabled');
-      statusLabel.textContent = 'CLOAK ACTIVE';
+      statusLabel.textContent = 'Overrides enabled';
     } else {
       statusPill.classList.add('disabled');
-      statusLabel.textContent = 'BYPASS';
+      statusLabel.textContent = 'Overrides paused';
     }
 
     // Overview Hero
     overviewPersonaId.textContent = currentProfile.id || 'custom-profile';
     overviewPersonaName.textContent = currentProfile.name || 'Custom Spoofed Fingerprint';
     overviewOsVal.textContent = `${currentProfile.os || 'Windows'} (${currentProfile.platform || 'Win32'})`;
-    overviewTzVal.textContent = `${currentProfile.timezone} (${currentProfile.timezoneAbbr || 'GMT'}${currentProfile.offset ? (currentProfile.offset > 0 ? '-' + Math.floor(currentProfile.offset/60) : '+' + Math.floor(-currentProfile.offset/60)) : ''})`;
+    overviewTzVal.textContent = `${currentProfile.timezone} · ${formatOffset(currentProfile.offset || 0)}`;
     overviewGpuVal.textContent = currentProfile.gpuRenderer || 'Default GPU';
     overviewLocaleVal.textContent = (currentProfile.languages || []).join(', ');
 
     // Match selects if matching persona found
-    if (currentProfile.id) {
-      quickPersonaSelect.value = currentProfile.id;
-      studioPersonaSelect.value = currentProfile.id;
-    }
+    const presetId = presets.IDENTITY_PRESETS.some(p => p.id === currentProfile.id) ? currentProfile.id : '';
+    quickPersonaSelect.value = presetId;
+    studioPersonaSelect.value = presetId;
 
     // Studio Form Values
     customUaInput.value = currentProfile.ua || '';
     customPlatformInput.value = currentProfile.platform || '';
     customChPlatformInput.value = currentProfile.chPlatform || '';
+    const uaIndex = presets.USER_AGENT_PRESETS.findIndex(p => p.ua === currentProfile.ua && p.platform === currentProfile.platform);
+    presetUaSelect.value = uaIndex < 0 ? '' : String(uaIndex);
 
     customTzInput.value = currentProfile.timezone || '';
     customTzOffset.value = currentProfile.offset || 0;
     customLatInput.value = currentProfile.lat || 0;
     customLonInput.value = currentProfile.lon || 0;
-    presetTimezoneSelect.value = currentProfile.timezone || 'America/New_York';
+    presetTimezoneSelect.value = presets.TIMEZONE_PRESETS.some(p => p.id === currentProfile.timezone) ? currentProfile.timezone : '';
 
     customLocaleInput.value = currentProfile.locale || 'en-US';
     customAcceptLangInput.value = currentProfile.acceptLanguage || 'en-US,en;q=0.9';
-    presetLangSelect.value = currentProfile.locale || 'en-US';
+    presetLangSelect.value = presets.LANGUAGE_PRESETS.some(p => p.code === currentProfile.locale) ? currentProfile.locale : '';
 
     customGpuVendorInput.value = currentProfile.gpuVendor || '';
     customGpuRendererInput.value = currentProfile.gpuRenderer || '';
+    const gpuIndex = presets.GPU_PRESETS.findIndex(p => p.vendor === currentProfile.gpuVendor && p.renderer === currentProfile.gpuRenderer);
+    presetGpuSelect.value = gpuIndex < 0 ? '' : String(gpuIndex);
 
     customScreenWidth.value = currentProfile.screenWidth || 1920;
     customScreenHeight.value = currentProfile.screenHeight || 1080;
     customDpr.value = currentProfile.dpr || 1.0;
     presetCpuSelect.value = currentProfile.cores || 8;
-    presetMemorySelect.value = currentProfile.memory || 16;
+    if (![...presetMemorySelect.options].some(o => Number(o.value) === currentProfile.memory)) {
+      presetMemorySelect.add(new Option(currentProfile.memory + ' GB (saved value)', currentProfile.memory));
+    }
+    presetMemorySelect.value = currentProfile.memory || 8;
+    const screenIndex = presets.SCREEN_PRESETS.findIndex(p => p.width === currentProfile.screenWidth && p.height === currentProfile.screenHeight && p.dpr === currentProfile.dpr);
+    presetScreenSelect.value = screenIndex < 0 ? '' : String(screenIndex);
 
     // Overview Parameter Table
     renderOverviewTable();
@@ -216,8 +327,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Whitelist List
     renderWhitelist();
 
-    // Synchronize active profile with in-page stealth engine
-    document.dispatchEvent(new CustomEvent('__CLOAK_STATE_UPDATE__', { detail: currentProfile }));
   }
 
   // --------------------------------------------------------------------------
@@ -234,15 +343,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       { vector: 'WebGL Unmasked Renderer', val: currentProfile.gpuRenderer, status: 'Active Cloak' },
       { vector: 'Screen Resolution & DPR', val: `${currentProfile.screenWidth}x${currentProfile.screenHeight} (DPR: ${currentProfile.dpr})`, status: 'Active Cloak' },
       { vector: 'Hardware Cores / RAM', val: `${currentProfile.cores} Cores / ${currentProfile.memory} GB`, status: 'Active Cloak' },
-      { vector: 'Canvas & Audio Entropy', val: `${canvasNoise ? 'Deterministic Salt' : 'Off'} / ${audioNoise ? 'Micro-Jitter' : 'Off'}`, status: 'Active Cloak' },
-      { vector: 'WebRTC IP Protection', val: webRtcProtect ? 'Default Public Interface Only' : 'Exposed', status: webRtcProtect ? 'Protected' : 'Off' }
+      { vector: 'Canvas / audio hooks', val: `${canvasNoise ? 'Enabled' : 'Off'} / ${audioNoise ? 'Enabled' : 'Off'}` },
+      { vector: 'WebRTC policy request', val: webRtcProtect ? webRtcPolicy === 'disable_non_proxied_udp' ? 'Strict: block direct UDP' : 'Compatibility: public interface only' : 'Default browser policy' }
     ];
 
     overviewTableBody.innerHTML = rows.map(r => `
       <tr>
-        <td style="color: #a1a1aa; font-weight: 600;">${escapeHtml(r.vector)}</td>
-        <td style="color: #f4f4f5; max-width: 500px; word-break: break-all;">${escapeHtml(r.val)}</td>
-        <td><span class="tag-pass">${escapeHtml(r.status)}</span></td>
+        <td>${escapeHtml(r.vector)}</td>
+        <td>${escapeHtml(r.val)}</td>
+        <td><span class="tag-pass">${isEnabled ? 'Configured' : 'Paused'}</span></td>
       </tr>
     `).join('');
   }
@@ -268,9 +377,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   btnAddWhitelist.addEventListener('click', async () => {
-    let domain = whitelistInput.value.trim().toLowerCase();
-    domain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!domain) return;
+    let domain;
+    try { domain = window.CLOAK_SETTINGS.domain(whitelistInput.value); }
+    catch (error) { showToast(error.message); return; }
     if (!whitelist.includes(domain)) {
       whitelist.push(domain);
       await chrome.storage.local.set({ whitelist });
@@ -297,7 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     isEnabled = masterToggle.checked;
     await chrome.storage.local.set({ cloakEnabled: isEnabled });
     updateUIFromState();
-    showToast(isEnabled ? 'Stealth Cloak Activated' : 'Stealth Cloak Deactivated (Bypass)');
+    showToast(isEnabled ? 'Browser overrides enabled.' : 'Browser overrides paused.');
   });
 
   function applyPersonaById(id) {
@@ -323,8 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const randomPick = available[Math.floor(Math.random() * available.length)] || presets.IDENTITY_PRESETS[0];
     currentProfile = Object.assign({}, randomPick);
     updateUIFromState();
-    await saveActiveProfile();
-    showToast(`Rolled New Identity: ${currentProfile.name}`);
+    if (await saveActiveProfile()) showToast(`Sample profile saved: ${currentProfile.name}`);
   });
 
   // --------------------------------------------------------------------------
@@ -411,6 +519,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 8. SAVE & RESET BUTTONS
   // --------------------------------------------------------------------------
   async function saveActiveProfile() {
+    for (const input of document.querySelectorAll('#tab-studio input, #tab-studio textarea')) {
+      if (!input.reportValidity()) return;
+    }
+    let locale;
+    try {
+      locale = Intl.getCanonicalLocales(customLocaleInput.value.trim())[0];
+      if (!locale) throw new Error('Missing locale');
+      if (/[\r\n]/.test(customAcceptLangInput.value + customUaInput.value)) throw new Error('Invalid header');
+    } catch (error) {
+      showToast('Use a valid locale such as en-US and single-line header values.');
+      return;
+    }
+    if (currentProfile.locale !== locale && customAcceptLangInput.value.trim() === currentProfile.acceptLanguage) {
+      customAcceptLangInput.value = locale + ',' + new Intl.Locale(locale).language + ';q=0.9';
+    }
     // Read manual edits
     currentProfile.ua = customUaInput.value.trim();
     currentProfile.platform = customPlatformInput.value.trim();
@@ -419,12 +542,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentProfile.offset = parseInt(customTzOffset.value, 10) || 0;
     currentProfile.lat = parseFloat(customLatInput.value) || 0;
     currentProfile.lon = parseFloat(customLonInput.value) || 0;
-    currentProfile.locale = customLocaleInput.value.trim();
+    if (currentProfile.locale !== locale || !currentProfile.languages || currentProfile.languages[0] !== locale) {
+      currentProfile.languages = [...new Set([locale, new Intl.Locale(locale).language])];
+    }
+    currentProfile.locale = locale;
     currentProfile.acceptLanguage = customAcceptLangInput.value.trim();
     currentProfile.gpuVendor = customGpuVendorInput.value.trim();
     currentProfile.gpuRenderer = customGpuRendererInput.value.trim();
     currentProfile.screenWidth = parseInt(customScreenWidth.value, 10) || 1920;
     currentProfile.screenHeight = parseInt(customScreenHeight.value, 10) || 1080;
+    currentProfile.availWidth = Math.min(currentProfile.availWidth || currentProfile.screenWidth, currentProfile.screenWidth);
+    currentProfile.availHeight = Math.min(currentProfile.availHeight || currentProfile.screenHeight, currentProfile.screenHeight);
     currentProfile.dpr = parseFloat(customDpr.value) || 1.0;
     currentProfile.cores = parseInt(presetCpuSelect.value, 10) || 8;
     currentProfile.memory = parseInt(presetMemorySelect.value, 10) || 16;
@@ -432,26 +560,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     canvasNoise = toggleCanvasNoise.checked;
     audioNoise = toggleAudioNoise.checked;
     webRtcProtect = toggleWebRtcProtect.checked;
+    webRtcPolicy = webRtcPolicySelect.value;
 
-    await chrome.storage.local.set({
-      cloakProfile: currentProfile,
-      cloakEnabled: isEnabled,
-      canvasNoise,
-      audioNoise,
-      webRtcProtect
-    });
+    try {
+      window.CLOAK_SETTINGS.profile(currentProfile);
+      await chrome.storage.local.set({
+        cloakProfile: currentProfile,
+        cloakEnabled: isEnabled,
+        canvasNoise,
+        audioNoise,
+        webRtcProtect,
+        webRtcPolicy
+      });
+    } catch (error) {
+      document.getElementById('saveStatus').textContent = 'Could not save. Your edits are still here; try again.';
+      showToast('Could not save profile. ' + error.message);
+      return false;
+    }
 
     updateUIFromState();
-    showToast('Profile configuration saved & applied.');
+    document.getElementById('saveStatus').textContent = 'Profile saved. Reload open webpages to verify changes.';
+    showToast('Profile saved.');
+    return true;
   }
 
+  document.getElementById('tab-studio').addEventListener('input', () => {
+    document.getElementById('saveStatus').textContent = 'Unsaved changes. Save the profile to apply them.';
+  });
+
   btnSaveConfig.addEventListener('click', saveActiveProfile);
+  toggleWebRtcProtect.addEventListener('change', () => { webRtcPolicySelect.disabled = !toggleWebRtcProtect.checked; });
 
   btnResetDefault.addEventListener('click', async () => {
     currentProfile = Object.assign({}, presets.DEFAULT_PROFILE);
     updateUIFromState();
-    await saveActiveProfile();
-    showToast('Reset to default profile.');
+    if (await saveActiveProfile()) showToast('Reset to default profile.');
   });
 
   // --------------------------------------------------------------------------
@@ -462,15 +605,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
+      tabBtns.forEach(b => {
+        b.classList.remove('active');
+        b.removeAttribute('aria-current');
+      });
       tabPanes.forEach(p => p.classList.remove('active'));
 
       btn.classList.add('active');
+      btn.setAttribute('aria-current', 'page');
+      document.getElementById('pageTitle').textContent = btn.dataset.title;
       const target = document.getElementById(btn.dataset.tab);
       if (target) {
         target.classList.add('active');
         if (btn.dataset.tab === 'tab-diagnostics') {
-          runDiagnostics();
+          loadDiagnosticTabs();
         }
       }
     });
@@ -479,193 +627,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --------------------------------------------------------------------------
   // 10. REAL-TIME IN-BROWSER DIAGNOSTICS RUNNER
   // --------------------------------------------------------------------------
-  async function runDiagnostics() {
-    diagTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a1a1aa; padding: 20px;">Executing stealth heuristic checks...</td></tr>';
-
-    const results = [];
-
-    // Test 1: Prototype hasOwnProperty Check (Navigator.userAgent)
-    const hasOwnUA = Object.prototype.hasOwnProperty.call(navigator, 'userAgent');
-    results.push({
-      name: 'Prototype Integrity (Navigator.userAgent)',
-      heuristic: 'navigator.hasOwnProperty("userAgent") === false',
-      observed: hasOwnUA ? 'LEAK: Property exists on instance' : 'PASS: Inherited from Navigator.prototype',
-      pass: !hasOwnUA
-    });
-
-    // Test 2: Prototype hasOwnProperty Check (Navigator.platform)
-    const hasOwnPlatform = Object.prototype.hasOwnProperty.call(navigator, 'platform');
-    results.push({
-      name: 'Prototype Integrity (Navigator.platform)',
-      heuristic: 'navigator.hasOwnProperty("platform") === false',
-      observed: hasOwnPlatform ? 'LEAK: Property exists on instance' : 'PASS: Inherited from Navigator.prototype',
-      pass: !hasOwnPlatform
-    });
-
-    // Test 3: Function.prototype.toString Camouflage
-    let toStringPass = false;
-    let toStringVal = '';
+  const diagnosticTabSelect = document.getElementById('diagnosticTabSelect');
+  async function loadDiagnosticTabs() {
+    const selected = diagnosticTabSelect.value;
     try {
-      const getter = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent').get;
-      toStringVal = getter.toString();
-      toStringPass = toStringVal.includes('[native code]') && toStringVal.includes('userAgent');
-    } catch (e) {
-      toStringVal = String(e);
-    }
-    results.push({
-      name: 'Native toString Cloaking',
-      heuristic: 'Getter toString() returns "[native code]"',
-      observed: toStringVal,
-      pass: toStringPass
-    });
-
-    // Test 4: Illegal Invocation Fidelity
-    let illegalInvocationPass = false;
-    let illegalMsg = '';
-    try {
-      const getter = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent').get;
-      getter.call({});
-      illegalMsg = 'No error thrown (Failed)';
-    } catch (err) {
-      if (err instanceof TypeError && err.message.includes('Illegal invocation')) {
-        illegalInvocationPass = true;
-        illegalMsg = 'TypeError: Illegal invocation (Authentic)';
-      } else {
-        illegalMsg = err.name + ': ' + err.message;
-      }
-    }
-    results.push({
-      name: 'Illegal Invocation Fidelity',
-      heuristic: 'Calling getter with {} throws TypeError',
-      observed: illegalMsg,
-      pass: illegalInvocationPass
-    });
-
-    // Test 5: Timezone Offset vs Intl Alignment
-    const liveTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const liveOffset = new Date().getTimezoneOffset();
-    const exactOffset = presets.calculateExactTimezoneOffset ? presets.calculateExactTimezoneOffset(currentProfile.timezone) : currentProfile.offset;
-    const tzMatch = (liveTz === currentProfile.timezone) && (liveOffset === currentProfile.offset) && (currentProfile.offset === exactOffset);
-    results.push({
-      name: 'Timezone Mathematical Coherence',
-      heuristic: 'Intl timeZone matches Date.getTimezoneOffset() & DST',
-      observed: `Intl: ${liveTz} | Offset: ${liveOffset} min (Target: ${exactOffset} min)`,
-      pass: tzMatch,
-      action: !tzMatch ? '<button class="btn btn-secondary btn-xs btn-fix-tz" style="padding: 2px 8px; font-size: 10px;">⚡ Auto-Fix</button>' : '-'
-    });
-
-    // Test 6: WebGL Unmasked GPU Renderer
-    let liveGpuRenderer = 'Unavailable';
-    let liveGpuVendor = 'Unavailable';
-    let gpuPass = false;
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
-        const ext = gl.getExtension('WEBGL_debug_renderer_info');
-        liveGpuRenderer = gl.getParameter(0x9246) || (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'None');
-        liveGpuVendor = gl.getParameter(0x9245) || (ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : 'None');
-        gpuPass = (liveGpuRenderer === currentProfile.gpuRenderer) && (liveGpuVendor === currentProfile.gpuVendor);
-      }
-    } catch (e) {
-      liveGpuRenderer = String(e);
-    }
-    results.push({
-      name: 'WebGL GPU Unmasked Hardware',
-      heuristic: 'gl.getParameter(0x9246) returns spoofed GPU',
-      observed: liveGpuRenderer,
-      pass: gpuPass,
-      action: !gpuPass ? '<button class="btn btn-secondary btn-xs btn-fix-webgl" style="padding: 2px 8px; font-size: 10px;">⚡ Auto-Fix</button>' : '-'
-    });
-
-    // Test 7: Canvas Deterministic Stability Test
-    let canvasPass = false;
-    let canvasHashObserved = '';
-    try {
-      const c1 = document.createElement('canvas');
-      c1.width = 100; c1.height = 100;
-      const ctx1 = c1.getContext('2d');
-      ctx1.fillStyle = '#ff3366';
-      ctx1.fillRect(10, 10, 80, 80);
-      const url1 = c1.toDataURL();
-
-      const c2 = document.createElement('canvas');
-      c2.width = 100; c2.height = 100;
-      const ctx2 = c2.getContext('2d');
-      ctx2.fillStyle = '#ff3366';
-      ctx2.fillRect(10, 10, 80, 80);
-      const url2 = c2.toDataURL();
-
-      canvasPass = (url1 === url2) && (url1.length > 50);
-      canvasHashObserved = canvasPass ? 'Consistent hash across calls (Zero Flutter)' : 'Erratic frame flutter detected';
-    } catch (e) {
-      canvasHashObserved = String(e);
-    }
-    results.push({
-      name: 'Deterministic Canvas Entropy',
-      heuristic: 'Sequential renders produce identical hash (Anti-Bot Safe)',
-      observed: canvasHashObserved,
-      pass: canvasPass,
-      action: '-'
-    });
-
-    // Test 8: Media Devices Sanitization
-    let mediaPass = false;
-    let mediaObserved = '';
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        mediaPass = devices.length >= 2;
-        mediaObserved = `${devices.length} sanitized mock peripheral devices`;
-      } else {
-        mediaObserved = 'API Not Present';
-        mediaPass = true;
-      }
-    } catch (e) {
-      mediaObserved = String(e);
-    }
-    results.push({
-      name: 'Media Devices Sanitization',
-      heuristic: 'Hardware peripheral hashes sanitized',
-      observed: mediaObserved,
-      pass: mediaPass,
-      action: '-'
-    });
-
-    // Render Diagnostics Table
-    const total = results.length;
-    const passed = results.filter(r => r.pass).length;
-    const scorePct = Math.round((passed / total) * 100);
-
-    diagScore.textContent = `${scorePct}%`;
-    diagScore.style.color = scorePct === 100 ? 'var(--accent-green)' : (scorePct >= 75 ? 'var(--accent-amber)' : 'var(--accent-red)');
-    diagSummary.textContent = `${passed} of ${total} heuristic checks passed. Zero prototype tampering leaks detected. The browser environment appears authentic to anti-fraud engines.`;
-
-    if (btnAutoFixAll) {
-      if (scorePct === 100) {
-        btnAutoFixAll.textContent = '✓ All Checks Passing';
-        btnAutoFixAll.classList.remove('btn-primary');
-        btnAutoFixAll.classList.add('btn-secondary');
-      } else {
-        btnAutoFixAll.textContent = '⚡ Auto-Fix All Issues';
-        btnAutoFixAll.classList.remove('btn-secondary');
-        btnAutoFixAll.classList.add('btn-primary');
-      }
-    }
-
-    diagTableBody.innerHTML = results.map(r => `
-      <tr>
-        <td style="font-weight: 600; color: #f4f4f5;">${escapeHtml(r.name)}</td>
-        <td style="color: #a1a1aa;">${escapeHtml(r.heuristic)}</td>
-        <td style="color: #e4e4e7; max-width: 320px; word-break: break-all;">${escapeHtml(r.observed)}</td>
-        <td>
-          <span class="${r.pass ? 'tag-pass' : 'tag-fail'}">${r.pass ? 'PASSED' : 'FLAGGED'}</span>
-        </td>
-        <td>${r.action || '-'}</td>
-      </tr>
-    `).join('');
+      const response = await chrome.runtime.sendMessage({ type: 'GET_DIAGNOSTIC_TABS' });
+      if (!response || !response.ok) throw new Error(response && response.error || 'Could not list webpages.');
+      diagnosticTabSelect.replaceChildren();
+      for (const tab of response.tabs || []) diagnosticTabSelect.add(new Option(tab.title, String(tab.id)));
+      if ([...diagnosticTabSelect.options].some(o => o.value === selected)) diagnosticTabSelect.value = selected;
+      if (!diagnosticTabSelect.options.length) diagnosticTabSelect.add(new Option('Open a regular webpage, then refresh this list', ''));
+    } catch (error) { diagSummary.textContent = error.message; }
   }
-
+  document.getElementById('btnRefreshDiagnosticTabs').addEventListener('click', loadDiagnosticTabs);
+  async function runDiagnostics() {
+    btnRunDiagnostics.disabled = true;
+    diagScore.textContent = '—';
+    diagSummary.textContent = 'Checking the selected page and its frames…';
+    diagTableBody.replaceChildren();
+    try {
+      if (!diagnosticTabSelect.value) await loadDiagnosticTabs();
+      if (!diagnosticTabSelect.value) throw new Error('Open a regular webpage and select it before running checks.');
+      const response = await chrome.runtime.sendMessage({ type: 'RUN_PAGE_DIAGNOSTICS', tabId: Number(diagnosticTabSelect.value) });
+      if (!response || !response.ok) throw new Error(response && response.error || 'Page checks could not run.');
+      const rows = [];
+      for (const frame of response.frames) {
+        if (frame.error) rows.push({name:'Frame unavailable',expectation:'Frame permits extension injection',observed:frame.error,status:'skip',scope:frame.url});
+        for (const check of frame.checks) rows.push(Object.assign({}, check, {scope:'Frame ' + frame.frameId + ' · ' + frame.url}));
+      }
+      rows.push({name:'Effective WebRTC policy',expectation:'Browser policy is reported, not inferred',observed:response.policy.value + ' · ' + response.policy.levelOfControl,status:'info',scope:'Browser-wide'});
+      const passed = rows.filter(r => r.status === 'pass').length;
+      const tested = rows.filter(r => r.status === 'pass' || r.status === 'fail').length;
+      diagScore.textContent = passed + '/' + tested;
+      diagSummary.textContent = passed + ' of ' + tested + ' assertions passed across ' + response.frames.length + ' frames. Skipped frames and WebRTC observations are listed separately. This is not an authenticity score.';
+      diagTableBody.innerHTML = rows.map(r => '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.expectation) + '</td><td>' + escapeHtml(r.observed) + '</td><td><span class="' + (r.status === 'pass' ? 'tag-pass' : r.status === 'fail' ? 'tag-fail' : 'mono-meta') + '">' + escapeHtml(r.status.toUpperCase()) + '</span></td><td>' + escapeHtml(r.scope) + '</td></tr>').join('');
+    } catch (error) { diagSummary.textContent = error.message; }
+    finally { btnRunDiagnostics.disabled = false; }
+  }
   btnRunDiagnostics.addEventListener('click', runDiagnostics);
 
   // --------------------------------------------------------------------------
@@ -684,37 +682,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentProfile.timezoneAbbr = exactAbbr;
     customTzOffset.value = exactOffset;
 
-    await saveActiveProfile();
+    if (!await saveActiveProfile()) return false;
     showToast(`Timezone math aligned: ${tz} (Offset: ${exactOffset} min, ${exactAbbr})`);
+    return true;
   }
 
   async function autoFixWebGL() {
     const isMac = (currentProfile.os === 'macOS') || (currentProfile.platform && currentProfile.platform.includes('Mac'));
     const isWin = (currentProfile.os === 'Windows') || (currentProfile.platform && currentProfile.platform.includes('Win'));
 
-    let targetGpu = presets.GPU_PRESETS[0];
-    if (isMac) {
-      targetGpu = presets.GPU_PRESETS.find(g => g.os === 'MacIntel') || presets.GPU_PRESETS[10];
-    } else if (isWin) {
-      targetGpu = presets.GPU_PRESETS.find(g => g.os === 'Windows') || presets.GPU_PRESETS[0];
-    } else {
-      targetGpu = presets.GPU_PRESETS.find(g => g.os && g.os.includes('Linux')) || presets.GPU_PRESETS[16];
-    }
+    const targetOs = isMac ? 'MacIntel' : isWin ? 'Windows' : 'Linux x86_64';
+    const targetGpu = presets.GPU_PRESETS.find(g => g.os === targetOs);
+    if (!targetGpu) { showToast('No graphics sample matches this platform.'); return false; }
 
     currentProfile.gpuVendor = targetGpu.vendor;
     currentProfile.gpuRenderer = targetGpu.renderer;
     customGpuVendorInput.value = targetGpu.vendor;
     customGpuRendererInput.value = targetGpu.renderer;
 
-    await saveActiveProfile();
+    if (!await saveActiveProfile()) return false;
     showToast(`WebGL hardware profile matched to ${currentProfile.os}: ${targetGpu.label}`);
+    return true;
   }
 
   async function autoFixAll() {
-    await autoFixTimezone();
-    await autoFixWebGL();
+    const previousOffset = currentProfile.offset;
+    const previousGpu = currentProfile.gpuRenderer;
+    if (!await autoFixTimezone()) return;
+    if (!await autoFixWebGL()) return;
     await runDiagnostics();
-    showToast('Auto-Fix completed: All fingerprint vectors synchronized.');
+    diagSummary.textContent += ` Saved alignment: offset ${previousOffset} → ${currentProfile.offset} min; graphics ${previousGpu === currentProfile.gpuRenderer ? 'unchanged' : 'changed to the OS sample'}.`;
+    showToast('Alignment saved. Review the page assertions for the result.');
   }
 
   if (btnAutoFixTimezoneStudio) {

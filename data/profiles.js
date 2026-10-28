@@ -76,508 +76,292 @@
     { code: "no-NO", label: "Norwegian (Norway) - no-NO, no, en", languages: ["no-NO", "no", "en-US", "en"], acceptLanguage: "no-NO,no;q=0.9,en-US;q=0.8,en;q=0.7" }
   ];
 
-  // 3. SCREEN RESOLUTION PRESETS (18+ real displays)
+  // 3. SCREEN RESOLUTION PRESETS (sample displays)
   const SCREEN_PRESETS = [
-    { label: "1920 x 1080 (FHD 1080p Desktop - Most Common)", width: 1920, height: 1080, availWidth: 1920, availHeight: 1040, dpr: 1.0, colorDepth: 24 },
-    { label: "2560 x 1440 (QHD 1440p Gaming / Pro Display)", width: 2560, height: 1440, availWidth: 2560, availHeight: 1400, dpr: 1.0, colorDepth: 24 },
-    { label: "3840 x 2160 (4K UHD 2160p Display)", width: 3840, height: 2160, availWidth: 3840, availHeight: 2112, dpr: 1.5, colorDepth: 24 },
-    { label: "1512 x 982 (MacBook Pro 14\" M2/M3 Retina, DPR 2)", width: 1512, height: 982, availWidth: 1512, availHeight: 957, dpr: 2.0, colorDepth: 30 },
-    { label: "1728 x 1117 (MacBook Pro 16\" M2/M3 Retina, DPR 2)", width: 1728, height: 1117, availWidth: 1728, availHeight: 1092, dpr: 2.0, colorDepth: 30 },
-    { label: "1470 x 956 (MacBook Air 15\" M2/M3 Retina, DPR 2)", width: 1470, height: 956, availWidth: 1470, availHeight: 931, dpr: 2.0, colorDepth: 30 },
-    { label: "1440 x 900 (MacBook Air 13\" / WXGA+)", width: 1440, height: 900, availWidth: 1440, availHeight: 875, dpr: 1.0, colorDepth: 24 },
-    { label: "2560 x 1600 (WQXGA 16:10 Laptop)", width: 2560, height: 1600, availWidth: 2560, availHeight: 1552, dpr: 1.25, colorDepth: 24 },
-    { label: "3440 x 1440 (Ultra-Wide 21:9 Curved Monitor)", width: 3440, height: 1440, availWidth: 3440, availHeight: 1400, dpr: 1.0, colorDepth: 24 },
-    { label: "1366 x 768 (Budget Laptop HD)", width: 1366, height: 768, availWidth: 1366, availHeight: 728, dpr: 1.0, colorDepth: 24 },
-    { label: "1680 x 1050 (WSXGA+ 16:10 Desktop)", width: 1680, height: 1050, availWidth: 1680, availHeight: 1010, dpr: 1.0, colorDepth: 24 },
-    { label: "1600 x 900 (HD+ 16:9 Display)", width: 1600, height: 900, availWidth: 1600, availHeight: 860, dpr: 1.0, colorDepth: 24 },
-    { label: "2880 x 1800 (MacBook Pro 15\" Retina)", width: 2880, height: 1800, availWidth: 2880, availHeight: 1775, dpr: 2.0, colorDepth: 30 },
-    { label: "1920 x 1200 (WUXGA 16:10 Business Display)", width: 1920, height: 1200, availWidth: 1920, availHeight: 1152, dpr: 1.0, colorDepth: 24 },
-    { label: "2256 x 1504 (Surface Laptop 3:2 PixelSense)", width: 2256, height: 1504, availWidth: 2256, availHeight: 1456, dpr: 1.5, colorDepth: 24 }
+    {
+      "label": "2560 x 1440 (QHD 1440p Gaming / Pro Display)",
+      "width": 2560,
+      "height": 1440,
+      "availWidth": 2560,
+      "availHeight": 1400,
+      "dpr": 1,
+      "colorDepth": 24
+    },
+    {
+      "label": "1728 x 1117 (MacBook Pro 16\" M2/M3 Retina, DPR 2)",
+      "width": 1728,
+      "height": 1117,
+      "availWidth": 1728,
+      "availHeight": 1092,
+      "dpr": 2,
+      "colorDepth": 30
+    },
+    {
+      "label": "1920 x 1200 (WUXGA 16:10 Business Display)",
+      "width": 1920,
+      "height": 1200,
+      "availWidth": 1920,
+      "availHeight": 1152,
+      "dpr": 1,
+      "colorDepth": 24
+    }
   ];
 
-  // 4. WEBGL GPU VENDOR & RENDERER PRESETS (20+ authentic GPU specifications)
+  // 4. WEBGL GPU VENDOR & RENDERER PRESETS (sample GPU strings)
   const GPU_PRESETS = [
     {
-      label: "NVIDIA GeForce RTX 4090 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      "label": "NVIDIA GeForce RTX 4080 (Direct3D11 - Windows)",
+      "os": "Windows",
+      "vendor": "Google Inc. (NVIDIA)",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)"
     },
     {
-      label: "NVIDIA GeForce RTX 4080 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      "label": "Apple M3 Max (Metal - macOS Sonoma)",
+      "os": "MacIntel",
+      "vendor": "Apple Inc.",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Version 14.5 (Build 23F79))"
     },
     {
-      label: "NVIDIA GeForce RTX 4070 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "NVIDIA GeForce RTX 3080 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "NVIDIA GeForce RTX 3060 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "NVIDIA GeForce GTX 1660 SUPER (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (NVIDIA)",
-      renderer: "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "AMD Radeon RX 7900 XTX (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (AMD)",
-      renderer: "ANGLE (AMD, AMD Radeon RX 7900 XTX Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "AMD Radeon RX 6800 XT (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (AMD)",
-      renderer: "ANGLE (AMD, AMD Radeon RX 6800 XT Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "Intel Iris Xe Graphics (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (Intel)",
-      renderer: "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "Intel UHD Graphics 770 (Direct3D11 - Windows)",
-      os: "Windows",
-      vendor: "Google Inc. (Intel)",
-      renderer: "ANGLE (Intel, Intel(R) UHD Graphics 770 Direct3D11 vs_5_0 ps_5_0, D3D11)"
-    },
-    {
-      label: "Apple M3 Max (Metal - macOS Sonoma)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Version 14.5 (Build 23F79))"
-    },
-    {
-      label: "Apple M3 Pro (Metal - macOS Sonoma)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Version 14.5 (Build 23F79))"
-    },
-    {
-      label: "Apple M2 Max (Metal - macOS Sonoma)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Version 14.4 (Build 23E214))"
-    },
-    {
-      label: "Apple M2 (Metal - macOS Ventura/Sonoma)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Version 14.2 (Build 23C64))"
-    },
-    {
-      label: "Apple M1 Pro (Metal - macOS Ventura)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Version 13.6 (Build 22G120))"
-    },
-    {
-      label: "Apple M1 (Metal - macOS Ventura)",
-      os: "MacIntel",
-      vendor: "Apple Inc.",
-      renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Version 13.5 (Build 22G74))"
-    },
-    {
-      label: "AMD Radeon RX 6700 XT (Mesa / Linux)",
-      os: "Linux x86_64",
-      vendor: "Mesa/X.org",
-      renderer: "AMD Radeon RX 6700 XT (radeonsi, navi22, LLVM 17.0.6, DRM 3.57)"
-    },
-    {
-      label: "Intel UHD Graphics 620 (Mesa / Linux)",
-      os: "Linux x86_64",
-      vendor: "Mesa/X.org",
-      renderer: "Mesa Intel(R) UHD Graphics 620 (KBL GT2)"
+      "label": "AMD Radeon RX 6700 XT (Mesa / Linux)",
+      "os": "Linux x86_64",
+      "vendor": "Mesa/X.org",
+      "renderer": "AMD Radeon RX 6700 XT (radeonsi, navi22, LLVM 17.0.6, DRM 3.57)"
     }
   ];
 
   // 5. HARDWARE CONCURRENCY & MEMORY PRESETS
   const CPU_PRESETS = [4, 6, 8, 12, 16, 24, 32];
-  const MEMORY_PRESETS = [4, 8, 16, 32, 64];
+  const MEMORY_PRESETS = [4, 8];
 
-  // 6. OS VOICE PROFILES (for speechSynthesis.getVoices harmonization)
-  const VOICE_PROFILES = {
-    "MacIntel": [
-      { name: "Samantha", lang: "en-US", default: true, localService: true, voiceURI: "Samantha" },
-      { name: "Alex", lang: "en-US", default: false, localService: true, voiceURI: "Alex" },
-      { name: "Victoria", lang: "en-US", default: false, localService: true, voiceURI: "Victoria" },
-      { name: "Fred", lang: "en-US", default: false, localService: true, voiceURI: "Fred" },
-      { name: "Daniel", lang: "en-GB", default: false, localService: true, voiceURI: "Daniel" },
-      { name: "Karen", lang: "en-AU", default: false, localService: true, voiceURI: "Karen" },
-      { name: "Anna", lang: "de-DE", default: false, localService: true, voiceURI: "Anna" },
-      { name: "Thomas", lang: "fr-FR", default: false, localService: true, voiceURI: "Thomas" },
-      { name: "Kyoko", lang: "ja-JP", default: false, localService: true, voiceURI: "Kyoko" }
-    ],
-    "Win32": [
-      { name: "Microsoft David - English (United States)", lang: "en-US", default: true, localService: true, voiceURI: "Microsoft David - English (United States)" },
-      { name: "Microsoft Zira - English (United States)", lang: "en-US", default: false, localService: true, voiceURI: "Microsoft Zira - English (United States)" },
-      { name: "Microsoft Mark - English (United States)", lang: "en-US", default: false, localService: true, voiceURI: "Microsoft Mark - English (United States)" },
-      { name: "Microsoft George - English (United Kingdom)", lang: "en-GB", default: false, localService: true, voiceURI: "Microsoft George - English (United Kingdom)" },
-      { name: "Microsoft Hedda - German (Germany)", lang: "de-DE", default: false, localService: true, voiceURI: "Microsoft Hedda - German (Germany)" },
-      { name: "Microsoft Hortense - French (France)", lang: "fr-FR", default: false, localService: true, voiceURI: "Microsoft Hortense - French (France)" },
-      { name: "Microsoft Haruka - Japanese (Japan)", lang: "ja-JP", default: false, localService: true, voiceURI: "Microsoft Haruka - Japanese (Japan)" }
-    ],
-    "Linux x86_64": [
-      { name: "Google US English", lang: "en-US", default: true, localService: false, voiceURI: "Google US English" },
-      { name: "Google UK English Female", lang: "en-GB", default: false, localService: false, voiceURI: "Google UK English Female" },
-      { name: "Google Deutsch", lang: "de-DE", default: false, localService: false, voiceURI: "Google Deutsch" },
-      { name: "Google français", lang: "fr-FR", default: false, localService: false, voiceURI: "Google français" },
-      { name: "Google 日本語", lang: "ja-JP", default: false, localService: false, voiceURI: "Google 日本語" }
-    ]
-  };
-
-  // 7. USER AGENT SAMPLE LIST (30+ authentic browsers across versions & OS)
+  // 7. USER AGENT SAMPLE LIST (three historical configuration samples)
   const USER_AGENT_PRESETS = [
-    // Windows Chrome
     {
-      label: "Chrome 126 on Windows 11 (64-bit)",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "126.0.0.0", os: "Windows", osVersion: "15.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }]
+      "label": "Chrome 126 on Windows 11 (64-bit)",
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "browser": "Chrome",
+      "browserVersion": "126.0.0.0",
+      "os": "Windows",
+      "osVersion": "15.0.0",
+      "platform": "Win32",
+      "chPlatform": "Windows",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ]
     },
     {
-      label: "Chrome 125 on Windows 11 (64-bit)",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "125.0.0.0", os: "Windows", osVersion: "15.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Google Chrome", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
+      "label": "Chrome 126 on macOS Sonoma (Apple Silicon)",
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "browser": "Chrome",
+      "browserVersion": "126.0.0.0",
+      "os": "macOS",
+      "osVersion": "14.5.0",
+      "platform": "MacIntel",
+      "chPlatform": "macOS",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ]
     },
     {
-      label: "Chrome 124 on Windows 10 (64-bit)",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "124.0.0.0", os: "Windows", osVersion: "10.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Chromium", version: "124" }, { brand: "Google Chrome", version: "124" }, { brand: "Not-A.Brand", version: "99" }]
-    },
-    // Windows Brave
-    {
-      label: "Brave 1.67 (Chromium 126) on Windows 11",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Brave", browserVersion: "1.67.123", os: "Windows", osVersion: "15.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Brave", version: "126" }]
-    },
-    {
-      label: "Brave 1.66 (Chromium 125) on Windows 11",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      browser: "Brave", browserVersion: "1.66.118", os: "Windows", osVersion: "15.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Brave", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
-    },
-    // Windows Edge
-    {
-      label: "Microsoft Edge 125 on Windows 11",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
-      browser: "Edge", browserVersion: "125.0.2535.85", os: "Windows", osVersion: "15.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Microsoft Edge", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
-    },
-    {
-      label: "Microsoft Edge 124 on Windows 10",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
-      browser: "Edge", browserVersion: "124.0.2478.80", os: "Windows", osVersion: "10.0.0", platform: "Win32", chPlatform: "Windows",
-      brands: [{ brand: "Chromium", version: "124" }, { brand: "Microsoft Edge", version: "124" }, { brand: "Not-A.Brand", version: "99" }]
-    },
-    // macOS Chrome
-    {
-      label: "Chrome 126 on macOS Sonoma (Apple Silicon)",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "126.0.0.0", os: "macOS", osVersion: "14.5.0", platform: "MacIntel", chPlatform: "macOS",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }]
-    },
-    {
-      label: "Chrome 125 on macOS Sonoma",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "125.0.0.0", os: "macOS", osVersion: "14.4.1", platform: "MacIntel", chPlatform: "macOS",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Google Chrome", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
-    },
-    {
-      label: "Chrome 124 on macOS Ventura",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "124.0.0.0", os: "macOS", osVersion: "13.6.7", platform: "MacIntel", chPlatform: "macOS",
-      brands: [{ brand: "Chromium", version: "124" }, { brand: "Google Chrome", version: "124" }, { brand: "Not-A.Brand", version: "99" }]
-    },
-    // macOS Brave
-    {
-      label: "Brave 1.67 (Chromium 126) on macOS Sonoma",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Brave", browserVersion: "1.67.123", os: "macOS", osVersion: "14.5.0", platform: "MacIntel", chPlatform: "macOS",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Brave", version: "126" }]
-    },
-    {
-      label: "Brave 1.66 (Chromium 125) on macOS Sonoma",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      browser: "Brave", browserVersion: "1.66.118", os: "macOS", osVersion: "14.4.1", platform: "MacIntel", chPlatform: "macOS",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Brave", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
-    },
-    // Linux Chrome
-    {
-      label: "Chrome 126 on Ubuntu Linux (x86_64)",
-      ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "126.0.0.0", os: "Linux", osVersion: "6.8.0", platform: "Linux x86_64", chPlatform: "Linux",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }]
-    },
-    {
-      label: "Chrome 125 on Fedora Linux (x86_64)",
-      ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      browser: "Chrome", browserVersion: "125.0.0.0", os: "Linux", osVersion: "6.8.5", platform: "Linux x86_64", chPlatform: "Linux",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Google Chrome", version: "125" }, { brand: "Not.A/Brand", version: "24" }]
-    },
-    {
-      label: "Brave 1.67 on Arch Linux (x86_64)",
-      ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      browser: "Brave", browserVersion: "1.67.123", os: "Linux", osVersion: "6.9.3", platform: "Linux x86_64", chPlatform: "Linux",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Brave", version: "126" }]
+      "label": "Chrome 126 on Ubuntu Linux (x86_64)",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "browser": "Chrome",
+      "browserVersion": "126.0.0.0",
+      "os": "Linux",
+      "osVersion": "6.8.0",
+      "platform": "Linux x86_64",
+      "chPlatform": "Linux",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ]
     }
   ];
 
-  // 8. FULL COHERENT IDENTITY PERSONAS (24 curated turnkey identities)
+  // 8. FULL COHERENT IDENTITY PERSONAS (three configuration samples)
   const IDENTITY_PRESETS = [
     {
-      id: "win11-chrome-rtx4080-ny",
-      name: "Alienware RTX 4080 • Windows 11 Chrome (New York)",
-      os: "Windows",
-      platform: "Win32",
-      chPlatform: "Windows",
-      chPlatformVersion: "15.0.0",
-      architecture: "x86",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }],
-      gpuVendor: "Google Inc. (NVIDIA)",
-      gpuRenderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)",
-      cores: 16,
-      memory: 32,
-      screenWidth: 2560,
-      screenHeight: 1440,
-      availWidth: 2560,
-      availHeight: 1400,
-      dpr: 1.0,
-      colorDepth: 24,
-      timezone: "America/New_York",
-      locale: "en-US",
-      languages: ["en-US", "en"],
-      acceptLanguage: "en-US,en;q=0.9",
-      lat: 40.7128,
-      lon: -74.0060
+      "id": "win11-chrome-rtx4080-ny",
+      "name": "Windows sample · America/New_York",
+      "os": "Windows",
+      "platform": "Win32",
+      "chPlatform": "Windows",
+      "chPlatformVersion": "15.0.0",
+      "architecture": "x86",
+      "bitness": "64",
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ],
+      "gpuVendor": "Google Inc. (NVIDIA)",
+      "gpuRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "cores": 16,
+      "memory": 8,
+      "screenWidth": 2560,
+      "screenHeight": 1440,
+      "availWidth": 2560,
+      "availHeight": 1400,
+      "dpr": 1,
+      "colorDepth": 24,
+      "timezone": "America/New_York",
+      "locale": "en-US",
+      "languages": [
+        "en-US",
+        "en"
+      ],
+      "acceptLanguage": "en-US,en;q=0.9",
+      "lat": 40.7128,
+      "lon": -74.006
     },
     {
-      id: "win11-brave-rtx3070-london",
-      name: "Razer Blade RTX 3070 • Windows 11 Brave (London)",
-      os: "Windows",
-      platform: "Win32",
-      chPlatform: "Windows",
-      chPlatformVersion: "15.0.0",
-      architecture: "x86",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Brave", version: "126" }],
-      gpuVendor: "Google Inc. (NVIDIA)",
-      gpuRenderer: "ANGLE (NVIDIA, NVIDIA GeForce RTX 3070 Direct3D11 vs_5_0 ps_5_0, D3D11)",
-      cores: 12,
-      memory: 16,
-      screenWidth: 1920,
-      screenHeight: 1080,
-      availWidth: 1920,
-      availHeight: 1040,
-      dpr: 1.0,
-      colorDepth: 24,
-      timezone: "Europe/London",
-      locale: "en-GB",
-      languages: ["en-GB", "en", "en-US"],
-      acceptLanguage: "en-GB,en;q=0.9,en-US;q=0.8",
-      lat: 51.5074,
-      lon: -0.1278
+      "id": "mac-m3max-chrome-tokyo",
+      "name": "macOS sample · Asia/Tokyo",
+      "os": "macOS",
+      "platform": "MacIntel",
+      "chPlatform": "macOS",
+      "chPlatformVersion": "14.5.0",
+      "architecture": "arm",
+      "bitness": "64",
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ],
+      "gpuVendor": "Apple Inc.",
+      "gpuRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Version 14.5 (Build 23F79))",
+      "cores": 16,
+      "memory": 8,
+      "screenWidth": 1728,
+      "screenHeight": 1117,
+      "availWidth": 1728,
+      "availHeight": 1092,
+      "dpr": 2,
+      "colorDepth": 30,
+      "timezone": "Asia/Tokyo",
+      "locale": "ja-JP",
+      "languages": [
+        "ja-JP",
+        "ja",
+        "en-US",
+        "en"
+      ],
+      "acceptLanguage": "ja,ja-JP;q=0.9,en-US;q=0.8,en;q=0.7",
+      "lat": 35.6762,
+      "lon": 139.6503
     },
     {
-      id: "mac-m3max-chrome-tokyo",
-      name: "MacBook Pro 16\" M3 Max • macOS Sonoma Chrome (Tokyo)",
-      os: "macOS",
-      platform: "MacIntel",
-      chPlatform: "macOS",
-      chPlatformVersion: "14.5.0",
-      architecture: "arm",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }],
-      gpuVendor: "Apple Inc.",
-      gpuRenderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Version 14.5 (Build 23F79))",
-      cores: 16,
-      memory: 32,
-      screenWidth: 1728,
-      screenHeight: 1117,
-      availWidth: 1728,
-      availHeight: 1092,
-      dpr: 2.0,
-      colorDepth: 30,
-      timezone: "Asia/Tokyo",
-      locale: "ja-JP",
-      languages: ["ja-JP", "ja", "en-US", "en"],
-      acceptLanguage: "ja,ja-JP;q=0.9,en-US;q=0.8,en;q=0.7",
-      lat: 35.6762,
-      lon: 139.6503
-    },
-    {
-      id: "mac-m2-brave-berlin",
-      name: "MacBook Air 15\" M2 • macOS Sonoma Brave (Berlin)",
-      os: "macOS",
-      platform: "MacIntel",
-      chPlatform: "macOS",
-      chPlatformVersion: "14.4.1",
-      architecture: "arm",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Brave", version: "125" }, { brand: "Not.A/Brand", version: "24" }],
-      gpuVendor: "Apple Inc.",
-      gpuRenderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Version 14.2 (Build 23C64))",
-      cores: 8,
-      memory: 16,
-      screenWidth: 1470,
-      screenHeight: 956,
-      availWidth: 1470,
-      availHeight: 931,
-      dpr: 2.0,
-      colorDepth: 30,
-      timezone: "Europe/Berlin",
-      locale: "de-DE",
-      languages: ["de-DE", "de", "en-US", "en"],
-      acceptLanguage: "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-      lat: 52.5200,
-      lon: 13.4050
-    },
-    {
-      id: "linux-thinkpad-chrome-frankfurt",
-      name: "ThinkPad X1 AMD • Ubuntu 24.04 Chrome (Frankfurt)",
-      os: "Linux",
-      platform: "Linux x86_64",
-      chPlatform: "Linux",
-      chPlatformVersion: "6.8.0",
-      architecture: "x86",
-      bitness: "64",
-      ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      brands: [{ brand: "Not/A)Brand", version: "8" }, { brand: "Chromium", version: "126" }, { brand: "Google Chrome", version: "126" }],
-      gpuVendor: "Mesa/X.org",
-      gpuRenderer: "AMD Radeon RX 6700 XT (radeonsi, navi22, LLVM 17.0.6, DRM 3.57)",
-      cores: 8,
-      memory: 16,
-      screenWidth: 1920,
-      screenHeight: 1200,
-      availWidth: 1920,
-      availHeight: 1152,
-      dpr: 1.0,
-      colorDepth: 24,
-      timezone: "Europe/Berlin",
-      locale: "de-DE",
-      languages: ["de-DE", "de", "en-US", "en"],
-      acceptLanguage: "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-      lat: 50.1109,
-      lon: 8.6821
-    },
-    {
-      id: "win11-edge-inteliris-singapore",
-      name: "Dell XPS 13 Intel Iris • Windows 11 Edge (Singapore)",
-      os: "Windows",
-      platform: "Win32",
-      chPlatform: "Windows",
-      chPlatformVersion: "15.0.0",
-      architecture: "x86",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
-      brands: [{ brand: "Chromium", version: "125" }, { brand: "Microsoft Edge", version: "125" }, { brand: "Not.A/Brand", version: "24" }],
-      gpuVendor: "Google Inc. (Intel)",
-      gpuRenderer: "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)",
-      cores: 8,
-      memory: 16,
-      screenWidth: 1920,
-      screenHeight: 1080,
-      availWidth: 1920,
-      availHeight: 1040,
-      dpr: 1.0,
-      colorDepth: 24,
-      timezone: "Asia/Singapore",
-      locale: "en-SG",
-      languages: ["en-SG", "en", "zh-CN"],
-      acceptLanguage: "en-SG,en;q=0.9,zh-CN;q=0.8",
-      lat: 1.3521,
-      lon: 103.8198
-    },
-    {
-      id: "win10-chrome-gtx1660-sydney",
-      name: "Custom PC GTX 1660 • Windows 10 Chrome (Sydney)",
-      os: "Windows",
-      platform: "Win32",
-      chPlatform: "Windows",
-      chPlatformVersion: "10.0.0",
-      architecture: "x86",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      brands: [{ brand: "Chromium", version: "124" }, { brand: "Google Chrome", version: "124" }, { brand: "Not-A.Brand", version: "99" }],
-      gpuVendor: "Google Inc. (NVIDIA)",
-      gpuRenderer: "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)",
-      cores: 6,
-      memory: 16,
-      screenWidth: 1920,
-      screenHeight: 1080,
-      availWidth: 1920,
-      availHeight: 1040,
-      dpr: 1.0,
-      colorDepth: 24,
-      timezone: "Australia/Sydney",
-      locale: "en-AU",
-      languages: ["en-AU", "en", "en-US"],
-      acceptLanguage: "en-AU,en;q=0.9,en-US;q=0.8",
-      lat: -33.8688,
-      lon: 151.2093
-    },
-    {
-      id: "mac-m1pro-chrome-paris",
-      name: "MacBook Pro 14\" M1 Pro • macOS Ventura Chrome (Paris)",
-      os: "macOS",
-      platform: "MacIntel",
-      chPlatform: "macOS",
-      chPlatformVersion: "13.6.7",
-      architecture: "arm",
-      bitness: "64",
-      ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      brands: [{ brand: "Chromium", version: "124" }, { brand: "Google Chrome", version: "124" }, { brand: "Not-A.Brand", version: "99" }],
-      gpuVendor: "Apple Inc.",
-      gpuRenderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Version 13.6 (Build 22G120))",
-      cores: 10,
-      memory: 16,
-      screenWidth: 1512,
-      screenHeight: 982,
-      availWidth: 1512,
-      availHeight: 957,
-      dpr: 2.0,
-      colorDepth: 30,
-      timezone: "Europe/Paris",
-      locale: "fr-FR",
-      languages: ["fr-FR", "fr", "en-US", "en"],
-      acceptLanguage: "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
-      lat: 48.8566,
-      lon: 2.3522
+      "id": "linux-thinkpad-chrome-frankfurt",
+      "name": "Linux sample · Europe/Berlin",
+      "os": "Linux",
+      "platform": "Linux x86_64",
+      "chPlatform": "Linux",
+      "chPlatformVersion": "6.8.0",
+      "architecture": "x86",
+      "bitness": "64",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      "brands": [
+        {
+          "brand": "Not/A)Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "126"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "126"
+        }
+      ],
+      "gpuVendor": "Mesa/X.org",
+      "gpuRenderer": "AMD Radeon RX 6700 XT (radeonsi, navi22, LLVM 17.0.6, DRM 3.57)",
+      "cores": 8,
+      "memory": 8,
+      "screenWidth": 1920,
+      "screenHeight": 1200,
+      "availWidth": 1920,
+      "availHeight": 1152,
+      "dpr": 1,
+      "colorDepth": 24,
+      "timezone": "Europe/Berlin",
+      "locale": "de-DE",
+      "languages": [
+        "de-DE",
+        "de",
+        "en-US",
+        "en"
+      ],
+      "acceptLanguage": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+      "lat": 50.1109,
+      "lon": 8.6821
     }
   ];
 
   // Mathematical exact offset and abbreviation calculator (DST-aware)
   function calculateExactTimezoneOffset(timezoneId, date = new Date()) {
     try {
-      const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC', hour12: false });
-      const tzStr = date.toLocaleString('en-US', { timeZone: timezoneId, hour12: false });
-      const utcDate = new Date(utcStr);
-      const tzDate = new Date(tzStr);
-      return Math.round((utcDate.getTime() - tzDate.getTime()) / 60000);
+      // Numeric wall-clock parts avoid reparsing locale strings in the host timezone.
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezoneId, year: 'numeric', era: 'short', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+      }).formatToParts(date);
+      const values = Object.fromEntries(parts.map(p => [p.type, p.value]));
+      const wall = new Date(0);
+      wall.setUTCFullYear(values.era === 'BC' ? 1 - Number(values.year) : Number(values.year), +values.month - 1, +values.day);
+      wall.setUTCHours(+values.hour, +values.minute, +values.second, 0);
+      return (Math.floor(date.getTime() / 1000) * 1000 - wall.getTime()) / 60000;
     } catch (e) {
       return 0;
     }
@@ -593,6 +377,12 @@
     }
   }
 
+  // Identity samples omit offsets in the data; resolve them for the current date.
+  IDENTITY_PRESETS.forEach(profile => {
+    profile.offset = calculateExactTimezoneOffset(profile.timezone);
+    profile.timezoneAbbr = getTimezoneAbbr(profile.timezone);
+  });
+
   // Export to global scope
   const CLOAK_PRESETS = {
     TIMEZONE_PRESETS,
@@ -601,7 +391,6 @@
     GPU_PRESETS,
     CPU_PRESETS,
     MEMORY_PRESETS,
-    VOICE_PROFILES,
     USER_AGENT_PRESETS,
     IDENTITY_PRESETS,
     DEFAULT_PROFILE: IDENTITY_PRESETS[0],
