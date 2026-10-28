@@ -5,6 +5,9 @@ function installStealthEngine(initialState, controlKey, controlToken) {
   const descriptor = Object.getOwnPropertyDescriptor;
   const existing = window[controlKey];
   if (typeof existing === 'function') return existing(controlToken, initialState);
+  if (Object.getOwnPropertyNames(window).some(key => /^__umbra_[a-f0-9]{32}$/.test(key))) {
+    return { ok: false, requiresReload: true, error: 'An engine from before the extension reload remains on this page. Reload the webpage to replace it safely.' };
+  }
   let state = initialState;
   const active = () => state.enabled === true && state.whitelisted !== true;
   const patches = [];

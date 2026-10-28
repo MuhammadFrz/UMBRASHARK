@@ -628,6 +628,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 10. REAL-TIME IN-BROWSER DIAGNOSTICS RUNNER
   // --------------------------------------------------------------------------
   const diagnosticTabSelect = document.getElementById('diagnosticTabSelect');
+  const btnApplyProfileToTab = document.getElementById('btnApplyProfileToTab');
+  const btnReloadProfileTab = document.getElementById('btnReloadProfileTab');
+  async function applySavedProfileToTab() {
+    btnApplyProfileToTab.disabled = true;
+    try {
+      if (!diagnosticTabSelect.value) await loadDiagnosticTabs();
+      if (!diagnosticTabSelect.value) throw new Error('Select a regular webpage first.');
+      const response = await chrome.runtime.sendMessage({ type: 'APPLY_PROFILE_TO_TAB', tabId: Number(diagnosticTabSelect.value) });
+      if (!response || !response.ok) throw new Error(response && response.error || 'Could not apply the saved profile.');
+      btnReloadProfileTab.hidden = !response.requiresReload;
+      await runDiagnostics();
+      const failures = response.frames.filter(frame => !frame.ok);
+      if (failures.length) {
+        diagSummary.textContent += ' Apply failed: ' + [...new Set(failures.map(frame => frame.error || 'Installation was not confirmed.'))].join(' ');
+        return false;
+      }
+      diagSummary.textContent += ' Saved profile applied to ' + response.frames.length + ' frames.';
+      return true;
+    } catch (error) { diagSummary.textContent = error.message; return false; }
+    finally { btnApplyProfileToTab.disabled = false; }
+  }
+  btnApplyProfileToTab.addEventListener('click', applySavedProfileToTab);
+  btnReloadProfileTab.addEventListener('click', async () => {
+    btnReloadProfileTab.disabled = true;
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'RELOAD_PROFILE_TAB', tabId: Number(diagnosticTabSelect.value) });
+      if (!response || !response.ok) throw new Error(response && response.error || 'Could not reload the page.');
+      btnReloadProfileTab.hidden = true;
+      diagSummary.textContent = 'Selected webpage reloading. Run checks once it finishes loading.';
+    } catch (error) { diagSummary.textContent = error.message; }
+    finally { btnReloadProfileTab.disabled = false; }
+  });
   async function loadDiagnosticTabs() {
     const selected = diagnosticTabSelect.value;
     try {
@@ -650,6 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!diagnosticTabSelect.value) throw new Error('Open a regular webpage and select it before running checks.');
       const response = await chrome.runtime.sendMessage({ type: 'RUN_PAGE_DIAGNOSTICS', tabId: Number(diagnosticTabSelect.value) });
       if (!response || !response.ok) throw new Error(response && response.error || 'Page checks could not run.');
+      btnReloadProfileTab.hidden = !response.frames.some(frame => frame.requiresReload);
       const rows = [];
       for (const frame of response.frames) {
         if (frame.error) rows.push({name:'Frame unavailable',expectation:'Frame permits extension injection',observed:frame.error,status:'skip',scope:frame.url});
@@ -710,9 +743,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const previousGpu = currentProfile.gpuRenderer;
     if (!await autoFixTimezone()) return;
     if (!await autoFixWebGL()) return;
-    await runDiagnostics();
+    const applied = await applySavedProfileToTab();
     diagSummary.textContent += ` Saved alignment: offset ${previousOffset} → ${currentProfile.offset} min; graphics ${previousGpu === currentProfile.gpuRenderer ? 'unchanged' : 'changed to the OS sample'}.`;
-    showToast('Alignment saved. Review the page assertions for the result.');
+    showToast(applied ? 'Alignment saved and applied. Review the page assertions.' : 'Alignment saved. Page application needs attention; see diagnostics.');
   }
 
   if (btnAutoFixTimezoneStudio) {

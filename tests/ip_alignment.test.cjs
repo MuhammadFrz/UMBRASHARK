@@ -76,12 +76,13 @@ test('aligns regional values and language without modifying the input or hardwar
 
 function worker(fetch) {
   let listener;
+  const listeners = [];
   const writes = [];
   const context = {
     console, fetch, AbortSignal, importScripts() {}, IP_ALIGNMENT: alignment,
     chrome: {
       runtime: { id: 'test', getURL: p => 'chrome-extension://test/' + p,
-        onMessage: { addListener(fn) { listener = fn; } }, onInstalled: { addListener() {} }, onStartup: { addListener() {} } },
+        onMessage: { addListener(fn) { listener = fn; listeners.push(fn); } }, onInstalled: { addListener() {} }, onStartup: { addListener() {} } },
       tabs: { onUpdated: { addListener() {} }, onRemoved: { addListener() {} } },
       action: { onClicked: { addListener() {} } },
       storage: { onChanged: { addListener() {} }, local: { set(value) { writes.push(value); } } }
@@ -91,7 +92,9 @@ function worker(fetch) {
   function send(sender = { id: 'test', url: 'chrome-extension://test/ui/dashboard.html' }) {
     return new Promise(resolve => listener({ type: 'DETECT_IP_LOCATION' }, sender, resolve));
   }
-  return { send, writes, context };
+  return { send, writes, context, dispatch(message, sender) {
+    return new Promise(resolve => { for (const fn of listeners) fn(message, sender, resolve); });
+  } };
 }
 
 test('worker only allows dashboard requests and does not save during detection', async () => {
@@ -150,4 +153,13 @@ test('WebRTC mode is allowlisted and disabling releases the extension override',
     ['set', 'disable_non_proxied_udp'], ['set', 'default_public_interface_only'],
     ['set', 'disable_non_proxied_udp'], ['clear']
   ]);
+});
+
+test('page repair and reload requests are restricted to the dashboard', async () => {
+  const harness = worker(async () => {});
+  for (const type of ['APPLY_PROFILE_TO_TAB','RELOAD_PROFILE_TAB','RUN_PAGE_DIAGNOSTICS','GET_DIAGNOSTIC_TABS']) {
+    const result = await harness.dispatch({type,tabId:123}, {id:'test',url:'https://example.com/'});
+    assert.equal(result.ok, false);
+    assert.match(result.error, /dashboard/);
+  }
 });

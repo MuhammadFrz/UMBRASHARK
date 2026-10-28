@@ -43,18 +43,21 @@ async function refreshEngine(sender) {
   }
   const result = await chrome.scripting.executeScript({
     target: { tabId: tab.id, documentIds: [sender.documentId] }, world: 'MAIN', injectImmediately: true,
-    func: credentials.installed ? function(next, key, token) { return window[key](token, next); } : installStealthEngine,
+    func: credentials.installed ? function(next, key, token) {
+      return typeof window[key] === 'function' ? window[key](token, next)
+        : { ok: false, error: 'The page engine is missing. Reload this webpage and apply again.', requiresReload: true };
+    } : installStealthEngine,
     args: [state, credentials.key, credentials.token]
   });
-  if (!credentials.installed) {
-    credentials.installed = true;
-    await chrome.storage.session.set({ [credentialId]: credentials });
-  }
-  return { ok: result[0] && result[0].result && result[0].result.ok === true, enabled: state.enabled, error: state.error };
+  const installation = result[0] && result[0].result || { ok: false, error: 'The engine returned no installation result. Reload the webpage and try again.' };
+  credentials.installed = installation.ok === true;
+  credentials.status = Object.assign({}, installation, { error: state.error || installation.error });
+  await chrome.storage.session.set({ [credentialId]: credentials });
+  return Object.assign({}, credentials.status, { ok: installation.ok === true && !state.error, enabled: state.enabled });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || !['REFRESH_ENGINE', 'GET_DIAGNOSTIC_TABS', 'RUN_PAGE_DIAGNOSTICS'].includes(message.type)) return;
+  if (!message || !['REFRESH_ENGINE', 'GET_DIAGNOSTIC_TABS', 'RUN_PAGE_DIAGNOSTICS', 'APPLY_PROFILE_TO_TAB', 'RELOAD_PROFILE_TAB'].includes(message.type)) return;
   const dashboard = sender.id === chrome.runtime.id && sender.url === chrome.runtime.getURL('ui/dashboard.html');
   let task;
   if (message.type === 'REFRESH_ENGINE') {
@@ -66,12 +69,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: false, error: 'Open the dashboard to run diagnostics.' }); return;
   } else if (message.type === 'GET_DIAGNOSTIC_TABS') {
     task = chrome.tabs.query({}).then(tabs => ({ ok: true, tabs: tabs.filter(t => /^https?:/.test(t.url || '')).map(t => ({ id: t.id, title: t.title || t.url, url: t.url })) }));
+  } else if (message.type === 'APPLY_PROFILE_TO_TAB' || message.type === 'RELOAD_PROFILE_TAB') {
+    task = applyProfileToTab(message.tabId, message.type === 'RELOAD_PROFILE_TAB');
   } else {
     task = runTabDiagnostics(message.tabId);
   }
   task.then(sendResponse, error => sendResponse({ ok: false, error: error.message }));
   return true;
 });
+
+async function applyProfileToTab(tabId, reload = false) {
+  if (!Number.isInteger(tabId)) throw new Error('Select a regular webpage first.');
+  const tab = await chrome.tabs.get(tabId);
+  if (!/^https?:/.test(tab.url || '')) throw new Error('Select a regular HTTP or HTTPS webpage.');
+  if (reload) {
+    await chrome.tabs.reload(tabId);
+    return { ok: true, reloaded: true };
+  }
+  const frames = await chrome.webNavigation.getAllFrames({ tabId }) || [];
+  const results = await Promise.all(frames.map(async frame => {
+    try {
+      // Older open tabs may have no live bridge after installation or extension reload.
+      await chrome.scripting.executeScript({ target: { tabId, documentIds: [frame.documentId] }, world: 'ISOLATED', files: ['content/bridge_isolated.js'] });
+      const result = await queueFrame(frame.documentId, () => refreshEngine({ tab, frameId: frame.frameId, documentId: frame.documentId }));
+      return Object.assign({ frameId: frame.frameId }, result);
+    } catch (error) { return { frameId: frame.frameId, ok: false, error: error.message }; }
+  }));
+  return { ok: true, frames: results, requiresReload: results.some(result => result.requiresReload) };
+}
 
 async function runTabDiagnostics(tabId) {
   if (!Number.isInteger(tabId)) throw new Error('Select a regular webpage first.');
@@ -82,9 +107,14 @@ async function runTabDiagnostics(tabId) {
   const results = await Promise.all(frames.map(async frame => {
     try {
       const expected = await frameState(tab, frame.frameId, data, frames);
+      const key = 'engine:' + tabId + ':' + frame.documentId;
+      const installation = (await chrome.storage.session.get(key))[key];
       const injection = await chrome.scripting.executeScript({ target: { tabId, documentIds: [frame.documentId] }, world: 'MAIN', func: runPageDiagnostics, args: [expected] });
       if (!injection[0] || !injection[0].result || !Array.isArray(injection[0].result.checks)) throw new Error('The frame navigated or returned no diagnostic result.');
-      return { frameId: frame.frameId, url: frame.url, ...injection[0].result };
+      injection[0].result.checks.unshift({ name: 'Engine installation', expectation: 'Trusted settings applied to this document',
+        observed: installation && installation.status && installation.status.error || (installation && installation.installed ? 'Installation confirmed' : 'No installation confirmed. Choose Apply saved profile to page; reload if requested.'),
+        status: installation && installation.installed && !(installation.status && installation.status.error) ? 'pass' : 'fail' });
+      return { frameId: frame.frameId, url: frame.url, requiresReload: !!(installation && installation.status && installation.status.requiresReload), ...injection[0].result };
     } catch (error) { return { frameId: frame.frameId, url: frame.url, error: error.message, checks: [] }; }
   }));
   const policy = await chrome.privacy.network.webRTCIPHandlingPolicy.get({});

@@ -9,7 +9,7 @@ The manifest declares version **1.0.0**. The [changelog](CHANGELOG.md) records t
 1. **Overview**: Review the configured profile. Choose **Detect IP location**, review the approximate location and optional language suggestion, then **Apply to profile**. **Undo alignment** restores the previous profile during that dashboard session.
 2. **Profile settings**: Adjust browser, location, language, graphics, and hardware fields, then choose **Save profile**. WebRTC defaults to strict mode; select compatibility mode if strict routing interferes with calls.
 3. **Site exceptions**: Add a hostname to bypass supported overrides on that site and its descendant frames. Reload the affected webpages after changing exceptions.
-4. **Diagnostics**: Select an open HTTP/HTTPS webpage and choose **Run checks** to inspect that page and its injectable frames. Assertions and informational observations are listed separately.
+4. **Diagnostics**: Select an open HTTP/HTTPS webpage and choose **Run checks** to inspect that page and its injectable frames. If **Engine installation** fails, choose **Apply saved profile to page**. If a stale engine remains from an extension reload, use **Reload selected page**, then run checks again. Reloading may discard unsaved page input. Assertions and informational observations are listed separately.
 
 IP detection contacts a third-party provider only when requested. It does not change your public IP or determine your hardware. See the regional alignment and testing sections for disclosure details.
 
@@ -36,6 +36,8 @@ IP detection contacts a third-party provider only when requested. It does not ch
 ### 4. Full-Page Control Center
 
 Clicking the extension icon opens or focuses `ui/dashboard.html`. The dashboard provides profile controls, site exceptions, IP alignment, and diagnostics for a selected regular webpage and its frames. **Align timezone & GPU** attempts current timezone-offset recalculation and OS-based GPU preset selection, reports save failures, and reruns the selected page's checks. It does not repair every fingerprinting vector.
+
+The alignment action also reapplies the saved profile to the selected page. It reports missing/stale installation problems instead of implying that a successful save means the page is updated. **Apply saved profile to page** repairs a missing bridge without changing profile values; stale engines request an explicit webpage reload rather than stacking hooks.
 
 ## Regional Controls & Limitations
 
@@ -72,6 +74,8 @@ The manifest specifies Chromium 111 as the minimum version. This declaration is 
 
 **Updating an unpacked installation:** Replace the extension files, choose **Reload** for UmbraShark on the extensions page, reopen its dashboard, and refresh existing webpages. The current engine uses the `scripting` and `webNavigation` permissions; approve updated permissions if your browser requests them. Reloading is required to replace cached service-worker code.
 
+App, toolbar, and dashboard icons share the same teal-and-white fin mark. To rebuild the SVG, PNG sizes, and ICO favicon, run `node generate_icons.js`. The manifest declares both top-level app icons and toolbar icons; the dashboard explicitly loads its favicon.
+
 ---
 
 ## Verification & Testing
@@ -80,7 +84,7 @@ Validation completed on **October 28, 2026**, on Windows:
 
 | Check | Result |
 | --- | --- |
-| Unit tests | 14 passed |
+| Unit tests | 17 passed |
 | Extension integration | Passed in isolated Brave and Edge profiles |
 | Date compatibility | 868 functional comparisons passed per browser across seven timezones |
 | Live IP alignment | Detection, preview, apply, and undo passed in disposable Brave |

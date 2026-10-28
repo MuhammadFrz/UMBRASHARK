@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, '..');
     server = http.createServer((req, res) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
       if (req.url.startsWith('/headers')) { res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(req.headers)); return; }
+      if(req.url.startsWith('/csp'))res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'none'");
       const port = server.address().port;
       let frames = '';
       if (req.url.startsWith('/frames')) frames = '<iframe src="http://localhost:' + port + '/child"></iframe>';
@@ -80,7 +81,9 @@ const root = path.resolve(__dirname, '..');
     const headers=await page.evaluate(()=>fetch('/headers').then(r=>r.json()));assert.equal(headers['accept-language'],configured.acceptLanguage);
     const position=await page.evaluate(()=>new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lon:p.coords.longitude,native:p instanceof GeolocationPosition,json:p.toJSON?p.toJSON():null}),reject)));
     assert.equal(position.lat,configured.lat);assert.ok(position.native);if(position.json)assert.equal(position.json.coords.latitude,configured.lat);
-    const dashboard=await context.newPage();await dashboard.goto('chrome-extension://'+id+'/ui/dashboard.html');
+    let dashboard=await context.newPage();await dashboard.goto('chrome-extension://'+id+'/ui/dashboard.html');
+    await dashboard.waitForFunction(()=>document.querySelector('.brand img').naturalWidth>0);
+    assert.ok(await dashboard.evaluate(async()=>{const href=document.querySelector('link[rel="icon"][type="image/svg+xml"]').href;const response=await fetch(href);return response.ok&&(await response.text()).includes('<svg');}));
     const testedTabId=await worker.evaluate(async base=>(await chrome.tabs.query({})).find(t=>t.url.startsWith(base)).id,base);
     const report=await dashboard.evaluate(tabId=>chrome.runtime.sendMessage({type:'RUN_PAGE_DIAGNOSTICS',tabId}),testedTabId);
     assert.ok(report.ok);assert.equal(report.frames.length,3);
@@ -149,8 +152,32 @@ const root = path.resolve(__dirname, '..');
     await dashboard.click('#btnUndoIp');await restorePage.waitForFunction(()=>navigator.language==='ja-JP');
     await dashboard.click('[data-tab="tab-diagnostics"]');await dashboard.waitForFunction(()=>document.getElementById('diagnosticTabSelect').options.length>0);
     await dashboard.selectOption('#diagnosticTabSelect',String(testedTabId));await dashboard.click('#btnRunDiagnostics');await dashboard.waitForFunction(()=>document.getElementById('diagSummary').textContent.includes('assertions passed'));
+    // Reproduce a document with no installed engine, as happens with older open tabs.
+    await worker.evaluate(()=>{self.savedRefreshEngine=refreshEngine;refreshEngine=async()=>({ok:false,error:'Simulated missed bootstrap'});});
+    const missedPage=await context.newPage();await missedPage.goto(base+'/csp');
+    await worker.evaluate(()=>{refreshEngine=self.savedRefreshEngine;delete self.savedRefreshEngine;});
+    const missedTabId=await worker.evaluate(async base=>(await chrome.tabs.query({})).find(t=>t.url===base+'/csp').id,base);
+    await dashboard.click('#btnRefreshDiagnosticTabs');await dashboard.selectOption('#diagnosticTabSelect',String(missedTabId));
+    await dashboard.click('#btnRunDiagnostics');await dashboard.waitForFunction(()=>document.getElementById('diagSummary').textContent.includes('assertions passed'));
+    assert.match(await dashboard.textContent('#diagTableBody'),/No installation confirmed/);
+    await dashboard.click('#btnApplyProfileToTab');await dashboard.waitForFunction(()=>document.getElementById('diagSummary').textContent.includes('Saved profile applied'));
+    assert.equal(await missedPage.evaluate(()=>navigator.language),'ja-JP');
+    assert.equal(await missedPage.evaluate(()=>Intl.DateTimeFormat().resolvedOptions().timeZone),'America/New_York');
+    // Reproduce extension-reload state deterministically: page hooks remain but credentials are gone.
+    await worker.evaluate(()=>chrome.storage.session.clear());const replacementWorker=worker;
+    await dashboard.waitForFunction(()=>document.getElementById('diagnosticTabSelect').options.length>0);
+    await dashboard.selectOption('#diagnosticTabSelect',String(missedTabId));await dashboard.click('#btnApplyProfileToTab');
+    await dashboard.waitForFunction(()=>!document.getElementById('btnApplyProfileToTab').disabled);
+    assert.equal(await dashboard.isVisible('#btnReloadProfileTab'),true,'Stale page hooks must request a reload instead of stacking another engine');
+    await Promise.all([missedPage.waitForEvent('load'),dashboard.click('#btnReloadProfileTab')]);
+    await missedPage.waitForFunction(()=>navigator.language==='ja-JP');
+    await dashboard.click('#btnRunDiagnostics');await dashboard.waitForFunction(()=>document.getElementById('diagSummary').textContent.includes('assertions passed'));
+    assert.doesNotMatch(await dashboard.textContent('#diagTableBody'),/FAIL/);
+    await replacementWorker.evaluate(async profile=>{await chrome.storage.local.set({cloakProfile:{...profile,locale:'de-DE',languages:['de-DE','de'],acceptLanguage:'de-DE,de;q=0.9'}});await syncBrowserSettings();},configured);
+    await missedPage.waitForFunction(()=>navigator.language==='de-DE');
+    await dashboard.click('#btnRunDiagnostics');await dashboard.waitForFunction(()=>document.getElementById('diagSummary').textContent.includes('assertions passed'));
     if(process.env.TEST_ARTIFACT_DIR){await dashboard.screenshot({path:path.join(process.env.TEST_ARTIFACT_DIR,'page-diagnostics.png'),fullPage:true});}
     assert.deepEqual(errors,[]);
-    console.log('PASS: authenticated updates, forged event/cache/token rejection, three-frame startup/bypass, cross-origin ancestor whitelist, actual headers, stable canvas/audio, DST/history/options/invalid dates, native voice/media objects, geolocation, WebRTC observation/policy, page diagnostics, disabled descriptor/audio restoration, invalid-profile fail-closed.');
+    console.log('PASS: authenticated updates, forged event/cache/token rejection, three-frame startup/bypass, cross-origin ancestor whitelist, actual headers, stable canvas/audio, DST/history/options/invalid dates, native voice/media objects, geolocation, WebRTC observation/policy, page diagnostics, disabled descriptor/audio restoration, invalid-profile fail-closed, missed bootstrap recovery, strict CSP, and stale-credential reload recovery.');
   } finally {if(context)await context.close();if(server)server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
