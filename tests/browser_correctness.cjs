@@ -105,9 +105,10 @@ const root = path.resolve(__dirname, '..');
     assert.ok(blobStable);
     for(const sample of presets.IDENTITY_PRESETS){
       await save({cloakProfile:sample});
-      await page.waitForFunction(platform=>navigator.platform===platform,sample.platform);
-      const values=await page.evaluate(async()=>({ua:navigator.userAgent,platform:navigator.platform,memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency,screenWidth:screen.width,hints:await navigator.userAgentData.getHighEntropyValues(['platformVersion','architecture','bitness'])}));
+      await page.waitForFunction(expected=>navigator.userAgent===expected.ua&&navigator.platform===expected.platform,{ua:sample.ua,platform:sample.platform});
+      const values=await page.evaluate(async()=>({ua:navigator.userAgent,platform:navigator.platform,vendor:navigator.vendor,maxTouchPoints:navigator.maxTouchPoints,mobile:navigator.userAgentData.mobile,memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency,screenWidth:screen.width,hints:await navigator.userAgentData.getHighEntropyValues(['platformVersion','architecture','bitness','model'])}));
       assert.equal(values.ua,sample.ua);assert.equal(values.memory,sample.memory);assert.equal(values.cores,sample.cores);assert.equal(values.screenWidth,sample.screenWidth);assert.equal(values.hints.platformVersion,sample.chPlatformVersion);
+      assert.equal(values.maxTouchPoints,sample.maxTouchPoints);assert.equal(values.mobile,sample.mobile);assert.equal(values.hints.model,sample.model);
       assert.equal((await page.evaluate(()=>fetch('/headers').then(r=>r.json())))['user-agent'],sample.ua);
     }
     await page.evaluate(()=>{window.originalDescriptor=Object.getOwnPropertyDescriptor;Object.getOwnPropertyDescriptor=function(target,key){if(target===window&&String(key).startsWith('__umbra_'))return {value:(token)=>{window.stolenToken=token;return {ok:true};}};return originalDescriptor(target,key);};});

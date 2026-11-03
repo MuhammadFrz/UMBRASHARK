@@ -22,6 +22,31 @@
       if (typeof value[key] !== 'string' || !value[key].trim() || value[key].length > 1024 || /[\r\n\0]/.test(value[key])) throw new Error('Invalid profile field: ' + key);
       next[key] = value[key];
     }
+    for (const key of ['model', 'vendor', 'deviceName', 'browserName', 'browserVersion']) {
+      if (value[key] !== undefined) {
+        if (typeof value[key] !== 'string' || value[key].length > 256 || /[\r\n\0]/.test(value[key])) throw new Error('Invalid profile field: ' + key);
+        next[key] = value[key].trim();
+      }
+    }
+    if (next.model === undefined) next.model = '';
+    if (next.vendor === undefined) {
+      next.vendor = /iOS|iPadOS/i.test(next.os) || (/Safari/.test(next.ua) && !/Chrome|CriOS|Chromium|Edg/.test(next.ua))
+        ? 'Apple Computer, Inc.'
+        : /Firefox\//.test(next.ua) ? '' : 'Google Inc.';
+    }
+    if (next.deviceName === undefined) next.deviceName = '';
+    if (next.browserName === undefined) next.browserName = '';
+    if (next.browserVersion === undefined) next.browserVersion = '';
+    if (value.mobile !== undefined && typeof value.mobile !== 'boolean') throw new Error('Invalid profile field: mobile');
+    next.mobile = typeof value.mobile === 'boolean' ? value.mobile : (/Android|iOS/i.test(next.os) && !/iPad/i.test(next.os));
+    if (value.maxTouchPoints !== undefined) {
+      if (typeof value.maxTouchPoints !== 'number' || !Number.isInteger(value.maxTouchPoints) || value.maxTouchPoints < 0 || value.maxTouchPoints > 32) {
+        throw new Error('Invalid profile field: maxTouchPoints');
+      }
+      next.maxTouchPoints = value.maxTouchPoints;
+    } else {
+      next.maxTouchPoints = next.mobile || /iPad/i.test(next.os) ? 5 : 0;
+    }
     next.locale = Intl.getCanonicalLocales(next.locale)[0];
     new Intl.DateTimeFormat('en-US', { timeZone: next.timezone });
     if (!Array.isArray(value.languages) || !value.languages.length || value.languages.length > 20) throw new Error('Invalid language list.');

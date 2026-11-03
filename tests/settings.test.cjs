@@ -3,19 +3,62 @@ const assert = require('node:assert/strict');
 const settings = require('../data/settings.js');
 const presets = require('../data/profiles.js');
 
-test('three sample profiles pass the schema and browser/platform consistency checks', () => {
-  assert.equal(presets.IDENTITY_PRESETS.length, 3);
+test('all sample profiles pass the schema and browser/platform consistency checks', () => {
+  assert.ok(presets.IDENTITY_PRESETS.length >= 11);
   for (const sample of presets.IDENTITY_PRESETS) {
     const profile = settings.profile(sample);
     assert.equal(profile.languages[0], profile.locale);
-    assert.ok(profile.ua.includes(profile.platform === 'Win32' ? 'Windows' : profile.platform === 'MacIntel' ? 'Macintosh' : 'Linux'));
-    assert.ok(presets.GPU_PRESETS.some(g => g.renderer === profile.gpuRenderer));
+    const expectedUaToken = profile.platform === 'Win32'
+      ? 'Windows'
+      : profile.platform === 'MacIntel'
+      ? 'Macintosh'
+      : profile.platform === 'iPhone'
+      ? 'iPhone'
+      : profile.platform === 'iPad'
+      ? 'iPad'
+      : 'Linux';
+    assert.ok(profile.ua.includes(expectedUaToken), `${profile.id} UA should include ${expectedUaToken}`);
+    assert.ok(presets.GPU_PRESETS.some(g => g.renderer === profile.gpuRenderer), `${profile.id} GPU renderer should exist in GPU_PRESETS`);
     assert.ok(profile.memory <= 8);
+    assert.equal(typeof profile.mobile, 'boolean');
+    assert.ok(Number.isInteger(profile.maxTouchPoints) && profile.maxTouchPoints >= 0);
+  }
+});
+
+test('device presets and dynamic browser builder produce valid coherent profiles', () => {
+  assert.ok(Array.isArray(presets.DEVICE_PRESETS) && presets.DEVICE_PRESETS.length >= 12);
+  for (const dev of presets.DEVICE_PRESETS) {
+    const built = presets.buildBrowserIdentity({
+      browserName: dev.defaultBrowser,
+      browserVersion: dev.defaultBrowserVersion,
+      os: dev.os,
+      chPlatformVersion: dev.chPlatformVersion,
+      model: dev.model,
+      mobile: dev.mobile,
+      platform: dev.platform
+    });
+    const combined = Object.assign({}, presets.DEFAULT_PROFILE, dev, built);
+    const validated = settings.profile(combined);
+    assert.equal(validated.os, dev.os);
+    assert.equal(validated.model, dev.model);
+    assert.equal(validated.mobile, dev.mobile);
+    assert.equal(validated.maxTouchPoints, dev.maxTouchPoints);
   }
 });
 
 test('invalid profile fields fail closed rather than using an unrelated default identity', () => {
-  for (const fields of [{ua:'injected\r\nheader'}, {cores:NaN}, {timezone:'Invalid/Zone'}, {languages:['ja-JP']}, {lat:91}, {brands:[{brand:'evil"',version:'1'}]}, {availWidth:99999}]) {
+  for (const fields of [
+    {ua:'injected\r\nheader'},
+    {cores:NaN},
+    {timezone:'Invalid/Zone'},
+    {languages:['ja-JP']},
+    {lat:91},
+    {brands:[{brand:'evil"',version:'1'}]},
+    {availWidth:99999},
+    {mobile:'yes'},
+    {maxTouchPoints:99},
+    {model:'bad\nmodel'}
+  ]) {
     const state = settings.state({cloakProfile:{...presets.DEFAULT_PROFILE,...fields}});
     assert.equal(state.enabled, false);
     assert.ok(state.error);

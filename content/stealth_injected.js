@@ -52,6 +52,8 @@ function installStealthEngine(initialState, controlKey, controlToken) {
     userAgent: 'ua', platform: 'platform', language: 'locale',
     hardwareConcurrency: 'cores', deviceMemory: 'memory'
   })) getter(Navigator.prototype, key, () => state[field]);
+  getter(Navigator.prototype, 'maxTouchPoints', nativeValue => state.maxTouchPoints !== undefined ? state.maxTouchPoints : (state.mobile ? 5 : nativeValue));
+  getter(Navigator.prototype, 'vendor', nativeValue => state.vendor !== undefined ? state.vendor : nativeValue);
   getter(Navigator.prototype, 'appVersion', () => state.ua.replace(/^Mozilla\//, ''));
   getter(Navigator.prototype, 'languages', () => Object.freeze([...state.languages]));
 
@@ -59,12 +61,14 @@ function installStealthEngine(initialState, controlKey, controlToken) {
   if (uaData) {
     const hints = data => {
       if (!active()) return data;
+      const isMobile = Boolean(state.mobile);
       const values = {
-        brands: state.brands, mobile: false, platform: state.chPlatform,
+        brands: state.brands, mobile: isMobile, platform: state.chPlatform,
         platformVersion: state.chPlatformVersion, architecture: state.architecture,
-        bitness: state.bitness, model: '',
-        fullVersionList: state.brands.map(b => ({ brand: b.brand, version: b.brand === 'Chromium' || /Chrome|Edge|Brave/.test(b.brand)
-          ? (state.ua.match(/(?:Chrome|Edg)\/([\d.]+)/) || [0, b.version + '.0.0.0'])[1] : b.version + '.0.0.0' }))
+        bitness: state.bitness, model: state.model || '',
+        formFactors: [isMobile ? 'Mobile' : 'Desktop'],
+        fullVersionList: state.brands.map(b => ({ brand: b.brand, version: b.brand === 'Chromium' || /Chrome|Edge|Brave|Samsung/.test(b.brand)
+          ? (state.ua.match(/(?:Chrome|CriOS|Edg|SamsungBrowser)\/([\d.]+)/) || [0, b.version + '.0.0.0'])[1] : b.version + '.0.0.0' }))
       };
       return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, active() && values[key] !== undefined ? structuredClone(values[key]) : value]));
     };
@@ -74,7 +78,7 @@ function installStealthEngine(initialState, controlKey, controlToken) {
       };
       if (key === 'toJSON') return () => hints(target.toJSON());
       if (active() && key === 'brands') return structuredClone(state.brands);
-      if (active() && key === 'mobile') return false;
+      if (active() && key === 'mobile') return Boolean(state.mobile);
       if (active() && key === 'platform') return state.chPlatform;
       const value = Reflect.get(target, key, target);
       return typeof value === 'function' ? value.bind(target) : value;

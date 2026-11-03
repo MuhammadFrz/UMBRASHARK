@@ -198,13 +198,25 @@ async function updateNetworkHeaders(profile, enabled, whitelist = []) {
       requestHeaders.push({
         header: 'Sec-CH-UA-Mobile',
         operation: 'set',
-        value: '?0'
+        value: profile.mobile ? '?1' : '?0'
       });
       requestHeaders.push({
         header: 'Sec-CH-UA-Platform',
         operation: 'set',
         value: `"${profile.chPlatform || 'Windows'}"`
       });
+      requestHeaders.push({
+        header: 'Sec-CH-UA-Model',
+        operation: 'set',
+        value: `"${profile.model || ''}"`
+      });
+      if (profile.chPlatformVersion) {
+        requestHeaders.push({
+          header: 'Sec-CH-UA-Platform-Version',
+          operation: 'set',
+          value: `"${profile.chPlatformVersion}"`
+        });
+      }
     }
 
     if (profile.acceptLanguage) {

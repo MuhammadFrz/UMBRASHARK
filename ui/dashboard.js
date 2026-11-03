@@ -32,11 +32,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   const overviewLocaleVal = document.getElementById('overviewLocaleVal');
   const overviewTableBody = document.getElementById('overviewTableBody');
 
-  // Studio Form Elements
-  const presetUaSelect = document.getElementById('presetUaSelect');
-  const customUaInput = document.getElementById('customUaInput');
+  // Studio Form Elements - Device & OS
+  const presetDeviceSelect = document.getElementById('presetDeviceSelect');
+  const customProfileNameInput = document.getElementById('customProfileNameInput');
+  const customModelInput = document.getElementById('customModelInput');
+  const customOsInput = document.getElementById('customOsInput');
+  const customOsVersionInput = document.getElementById('customOsVersionInput');
   const customPlatformInput = document.getElementById('customPlatformInput');
   const customChPlatformInput = document.getElementById('customChPlatformInput');
+  const customArchInput = document.getElementById('customArchInput');
+  const customBitnessInput = document.getElementById('customBitnessInput');
+  const customTouchPointsInput = document.getElementById('customTouchPointsInput');
+  const customMobileToggle = document.getElementById('customMobileToggle');
+
+  // Studio Form Elements - Browser Identity
+  const presetUaSelect = document.getElementById('presetUaSelect');
+  const btnBuildUaStudio = document.getElementById('btnBuildUaStudio');
+  const customBrowserNameInput = document.getElementById('customBrowserNameInput');
+  const customBrowserVersionInput = document.getElementById('customBrowserVersionInput');
+  const customVendorInput = document.getElementById('customVendorInput');
+  const customUaInput = document.getElementById('customUaInput');
+  const customBrandsInput = document.getElementById('customBrandsInput');
 
   const presetTimezoneSelect = document.getElementById('presetTimezoneSelect');
   const customTzInput = document.getElementById('customTzInput');
@@ -55,9 +71,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const presetScreenSelect = document.getElementById('presetScreenSelect');
   const customScreenWidth = document.getElementById('customScreenWidth');
   const customScreenHeight = document.getElementById('customScreenHeight');
+  const customAvailWidth = document.getElementById('customAvailWidth');
+  const customAvailHeight = document.getElementById('customAvailHeight');
   const customDpr = document.getElementById('customDpr');
+  const customColorDepth = document.getElementById('customColorDepth');
   const presetCpuSelect = document.getElementById('presetCpuSelect');
+  const customCoresInput = document.getElementById('customCoresInput');
   const presetMemorySelect = document.getElementById('presetMemorySelect');
+  const customMemoryInput = document.getElementById('customMemoryInput');
 
   const toggleCanvasNoise = document.getElementById('toggleCanvasNoise');
   const toggleAudioNoise = document.getElementById('toggleAudioNoise');
@@ -95,6 +116,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ipMatchLanguage = document.getElementById('ipMatchLanguage');
   let detectedLocation = null;
   let profileBeforeAlignment = null;
+
+  function formatBrands(brands) {
+    if (!Array.isArray(brands) || !brands.length) return 'Not/A)Brand:8, Chromium:136, Google Chrome:136';
+    return brands.map(b => `${b.brand}:${b.version}`).join(', ');
+  }
+
+  function parseBrands(text, fallbackBrands) {
+    const items = String(text || '').split(',').map(s => s.trim()).filter(Boolean).map(entry => {
+      const idx = entry.lastIndexOf(':');
+      if (idx <= 0) return null;
+      const brand = entry.slice(0, idx).trim();
+      const version = entry.slice(idx + 1).trim();
+      if (!brand || !/^\d{1,4}$/.test(version)) return null;
+      return { brand, version };
+    }).filter(Boolean);
+    return items.length ? items : (Array.isArray(fallbackBrands) && fallbackBrands.length ? fallbackBrands : [{ brand: 'Not/A)Brand', version: '8' }, { brand: 'Chromium', version: '136' }]);
+  }
+
+  function inferBrowserInfo(profile) {
+    const ua = profile.ua || '';
+    if (profile.browserName && profile.browserVersion) {
+      return { name: profile.browserName, version: profile.browserVersion };
+    }
+    let m;
+    if ((m = ua.match(/SamsungBrowser\/([\d.]+)/))) return { name: 'Samsung Internet', version: m[1] };
+    if ((m = ua.match(/Edg\/([\d.]+)/))) return { name: 'Edge', version: m[1] };
+    if ((m = ua.match(/CriOS\/([\d.]+)/))) return { name: 'Chrome iOS', version: m[1] };
+    if ((m = ua.match(/Firefox\/([\d.]+)/))) return { name: 'Firefox', version: m[1] };
+    if ((m = ua.match(/Version\/([\d.]+).*Safari/))) return { name: profile.mobile ? 'Safari Mobile' : 'Safari', version: m[1] };
+    if ((m = ua.match(/Chrome\/([\d.]+)/))) return { name: profile.mobile ? 'Chrome Mobile' : 'Chrome', version: m[1] };
+    return { name: profile.browserName || 'Chrome', version: profile.browserVersion || '136.0.0.0' };
+  }
 
   function setIpStatus(message, state = '') {
     ipStatus.textContent = message;
@@ -180,11 +233,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   function populateDropdowns() {
     quickPersonaSelect.add(new Option('Custom profile', ''));
     studioPersonaSelect.add(new Option('Custom profile', ''));
+    if (presetDeviceSelect) presetDeviceSelect.add(new Option('Custom device configuration', ''));
     presetTimezoneSelect.add(new Option('Custom / IP-detected timezone', ''));
     presetLangSelect.add(new Option('Custom / IP-suggested locale', ''));
     presetUaSelect.add(new Option('Custom browser values', ''));
     presetGpuSelect.add(new Option('Custom graphics values', ''));
     presetScreenSelect.add(new Option('Custom display values', ''));
+
     // Personas
     presets.IDENTITY_PRESETS.forEach(p => {
       const opt1 = new Option(p.name, p.id);
@@ -192,6 +247,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       quickPersonaSelect.add(opt1);
       studioPersonaSelect.add(opt2);
     });
+
+    // Devices
+    if (presetDeviceSelect && Array.isArray(presets.DEVICE_PRESETS)) {
+      presets.DEVICE_PRESETS.forEach(d => {
+        presetDeviceSelect.add(new Option(d.label, d.id));
+      });
+    }
 
     // User Agents
     presets.USER_AGENT_PRESETS.forEach((ua, idx) => {
@@ -275,10 +337,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusLabel.textContent = 'Overrides paused';
     }
 
+    const browserInfo = inferBrowserInfo(currentProfile);
+    const isMobile = typeof currentProfile.mobile === 'boolean'
+      ? currentProfile.mobile
+      : (/Android|iOS/i.test(currentProfile.os || '') && !/iPad/i.test(currentProfile.os || ''));
+    const touchPoints = Number.isInteger(currentProfile.maxTouchPoints)
+      ? currentProfile.maxTouchPoints
+      : (isMobile || /iPad/i.test(currentProfile.os || '') ? 5 : 0);
+    const vendor = currentProfile.vendor !== undefined
+      ? currentProfile.vendor
+      : (/iOS|iPadOS/i.test(currentProfile.os || '') ? 'Apple Computer, Inc.' : 'Google Inc.');
+
     // Overview Hero
     overviewPersonaId.textContent = currentProfile.id || 'custom-profile';
     overviewPersonaName.textContent = currentProfile.name || 'Custom Spoofed Fingerprint';
-    overviewOsVal.textContent = `${currentProfile.os || 'Windows'} (${currentProfile.platform || 'Win32'})`;
+    const modelSuffix = currentProfile.model ? ` · ${currentProfile.model}` : '';
+    overviewOsVal.textContent = `${currentProfile.os || 'Windows'} ${currentProfile.chPlatformVersion || ''} (${currentProfile.platform || 'Win32'}${modelSuffix})`.replace(/\s+/g, ' ');
     overviewTzVal.textContent = `${currentProfile.timezone} · ${formatOffset(currentProfile.offset || 0)}`;
     overviewGpuVal.textContent = currentProfile.gpuRenderer || 'Default GPU';
     overviewLocaleVal.textContent = (currentProfile.languages || []).join(', ');
@@ -288,10 +362,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     quickPersonaSelect.value = presetId;
     studioPersonaSelect.value = presetId;
 
-    // Studio Form Values
-    customUaInput.value = currentProfile.ua || '';
+    // Studio Device & OS Values
+    if (customProfileNameInput) customProfileNameInput.value = currentProfile.name || '';
+    if (customModelInput) customModelInput.value = currentProfile.model || '';
+    if (customOsInput) customOsInput.value = currentProfile.os || 'Windows';
+    if (customOsVersionInput) customOsVersionInput.value = currentProfile.chPlatformVersion || '15.0.0';
     customPlatformInput.value = currentProfile.platform || '';
     customChPlatformInput.value = currentProfile.chPlatform || '';
+    if (customArchInput) customArchInput.value = currentProfile.architecture || 'x86';
+    if (customBitnessInput) customBitnessInput.value = currentProfile.bitness || '64';
+    if (customTouchPointsInput) customTouchPointsInput.value = touchPoints;
+    if (customMobileToggle) customMobileToggle.checked = isMobile;
+
+    if (presetDeviceSelect && Array.isArray(presets.DEVICE_PRESETS)) {
+      const matchedDevice = presets.DEVICE_PRESETS.find(d =>
+        d.os === currentProfile.os &&
+        d.platform === currentProfile.platform &&
+        (d.model || '') === (currentProfile.model || '') &&
+        d.screenWidth === currentProfile.screenWidth &&
+        d.screenHeight === currentProfile.screenHeight
+      );
+      presetDeviceSelect.value = matchedDevice ? matchedDevice.id : '';
+    }
+
+    // Studio Browser Values
+    if (customBrowserNameInput) customBrowserNameInput.value = browserInfo.name;
+    if (customBrowserVersionInput) customBrowserVersionInput.value = browserInfo.version;
+    if (customVendorInput) customVendorInput.value = vendor;
+    customUaInput.value = currentProfile.ua || '';
+    if (customBrandsInput) customBrandsInput.value = formatBrands(currentProfile.brands);
     const uaIndex = presets.USER_AGENT_PRESETS.findIndex(p => p.ua === currentProfile.ua && p.platform === currentProfile.platform);
     presetUaSelect.value = uaIndex < 0 ? '' : String(uaIndex);
 
@@ -312,12 +411,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     customScreenWidth.value = currentProfile.screenWidth || 1920;
     customScreenHeight.value = currentProfile.screenHeight || 1080;
+    if (customAvailWidth) customAvailWidth.value = currentProfile.availWidth || currentProfile.screenWidth || 1920;
+    if (customAvailHeight) customAvailHeight.value = currentProfile.availHeight || currentProfile.screenHeight || 1040;
     customDpr.value = currentProfile.dpr || 1.0;
+    if (customColorDepth) customColorDepth.value = currentProfile.colorDepth || 24;
+
+    if (![...presetCpuSelect.options].some(o => Number(o.value) === currentProfile.cores)) {
+      presetCpuSelect.add(new Option((currentProfile.cores || 8) + ' Cores (custom)', currentProfile.cores || 8));
+    }
     presetCpuSelect.value = currentProfile.cores || 8;
+    if (customCoresInput) customCoresInput.value = currentProfile.cores || 8;
+
     if (![...presetMemorySelect.options].some(o => Number(o.value) === currentProfile.memory)) {
       presetMemorySelect.add(new Option(currentProfile.memory + ' GB (saved value)', currentProfile.memory));
     }
     presetMemorySelect.value = currentProfile.memory || 8;
+    if (customMemoryInput) customMemoryInput.value = currentProfile.memory || 8;
+
     const screenIndex = presets.SCREEN_PRESETS.findIndex(p => p.width === currentProfile.screenWidth && p.height === currentProfile.screenHeight && p.dpr === currentProfile.dpr);
     presetScreenSelect.value = screenIndex < 0 ? '' : String(screenIndex);
 
@@ -326,22 +436,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Whitelist List
     renderWhitelist();
-
   }
 
   // --------------------------------------------------------------------------
   // 4. RENDER OVERVIEW SIGNATURE TABLE
   // --------------------------------------------------------------------------
   function renderOverviewTable() {
+    const isMobile = Boolean(currentProfile.mobile);
+    const touchPoints = Number.isInteger(currentProfile.maxTouchPoints) ? currentProfile.maxTouchPoints : (isMobile ? 5 : 0);
+    const browserInfo = inferBrowserInfo(currentProfile);
     const rows = [
+      { vector: 'Device & OS Version', val: `${currentProfile.deviceName || currentProfile.os} · ${currentProfile.os} ${currentProfile.chPlatformVersion}${currentProfile.model ? ' (' + currentProfile.model + ')' : ''}`, status: 'Active Cloak' },
+      { vector: 'Browser & Version', val: `${browserInfo.name} ${browserInfo.version} (Vendor: ${currentProfile.vendor ?? 'Google Inc.'})`, status: 'Active Cloak' },
       { vector: 'User-Agent (HTTP + DOM)', val: currentProfile.ua, status: 'Active Cloak' },
-      { vector: 'Client Hints (Platform)', val: `${currentProfile.chPlatform} (${currentProfile.architecture} ${currentProfile.bitness}-bit)`, status: 'Active Cloak' },
-      { vector: 'Navigator.platform', val: currentProfile.platform, status: 'Active Cloak' },
+      { vector: 'Client Hints (Platform & Mobile)', val: `${currentProfile.chPlatform} ${currentProfile.chPlatformVersion} (${currentProfile.architecture} ${currentProfile.bitness}-bit · mobile: ${isMobile ? '?1' : '?0'})`, status: 'Active Cloak' },
+      { vector: 'Navigator.platform & Touch', val: `${currentProfile.platform} · maxTouchPoints: ${touchPoints}`, status: 'Active Cloak' },
       { vector: 'Timezone & Offset', val: `${currentProfile.timezone} (Offset: ${currentProfile.offset} min)`, status: 'Active Cloak' },
       { vector: 'Geolocation Coordinates', val: `${currentProfile.lat}, ${currentProfile.lon}`, status: 'Synchronized' },
       { vector: 'Primary Locale / Accept-Lang', val: `${currentProfile.locale} | ${currentProfile.acceptLanguage}`, status: 'Synchronized' },
-      { vector: 'WebGL Unmasked Renderer', val: currentProfile.gpuRenderer, status: 'Active Cloak' },
-      { vector: 'Screen Resolution & DPR', val: `${currentProfile.screenWidth}x${currentProfile.screenHeight} (DPR: ${currentProfile.dpr})`, status: 'Active Cloak' },
+      { vector: 'WebGL Unmasked Renderer', val: `${currentProfile.gpuVendor} · ${currentProfile.gpuRenderer}`, status: 'Active Cloak' },
+      { vector: 'Screen Resolution & DPR', val: `${currentProfile.screenWidth}x${currentProfile.screenHeight} (avail: ${currentProfile.availWidth}x${currentProfile.availHeight}, DPR: ${currentProfile.dpr}, ${currentProfile.colorDepth}-bit)`, status: 'Active Cloak' },
       { vector: 'Hardware Cores / RAM', val: `${currentProfile.cores} Cores / ${currentProfile.memory} GB`, status: 'Active Cloak' },
       { vector: 'Canvas / audio hooks', val: `${canvasNoise ? 'Enabled' : 'Off'} / ${audioNoise ? 'Enabled' : 'Off'}` },
       { vector: 'WebRTC policy request', val: webRtcProtect ? webRtcPolicy === 'disable_non_proxied_udp' ? 'Strict: block direct UDP' : 'Compatibility: public interface only' : 'Default browser policy' }
@@ -438,6 +552,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --------------------------------------------------------------------------
   // 7. PRESET EVENT HANDLERS FOR INDIVIDUAL CONTROLS
   // --------------------------------------------------------------------------
+  function rebuildUaFromForm() {
+    if (typeof presets.buildBrowserIdentity !== 'function') return;
+    const built = presets.buildBrowserIdentity({
+      browserName: customBrowserNameInput ? customBrowserNameInput.value : currentProfile.browserName,
+      browserVersion: customBrowserVersionInput ? customBrowserVersionInput.value : currentProfile.browserVersion,
+      os: customOsInput ? customOsInput.value : currentProfile.os,
+      chPlatformVersion: customOsVersionInput ? customOsVersionInput.value : currentProfile.chPlatformVersion,
+      model: customModelInput ? customModelInput.value : currentProfile.model,
+      mobile: customMobileToggle ? customMobileToggle.checked : currentProfile.mobile,
+      platform: customPlatformInput.value
+    });
+    customUaInput.value = built.ua;
+    if (customVendorInput) customVendorInput.value = built.vendor;
+    if (customBrandsInput) customBrandsInput.value = formatBrands(built.brands);
+    currentProfile.ua = built.ua;
+    currentProfile.vendor = built.vendor;
+    currentProfile.brands = built.brands;
+  }
+
+  if (btnBuildUaStudio) {
+    btnBuildUaStudio.addEventListener('click', () => {
+      rebuildUaFromForm();
+      document.getElementById('saveStatus').textContent = 'Built User-Agent & Client Hints from fields. Save the profile to apply.';
+      showToast('Rebuilt User-Agent and Client Hints from configured version & device.');
+    });
+  }
+
+  if (presetDeviceSelect) {
+    presetDeviceSelect.addEventListener('change', () => {
+      const dev = (presets.DEVICE_PRESETS || []).find(d => d.id === presetDeviceSelect.value);
+      if (!dev) return;
+      currentProfile.id = 'custom-' + dev.id;
+      currentProfile.deviceName = dev.deviceName;
+      currentProfile.name = `${dev.deviceName} · ${currentProfile.timezone || 'America/New_York'}`;
+      currentProfile.os = dev.os;
+      currentProfile.platform = dev.platform;
+      currentProfile.chPlatform = dev.chPlatform;
+      currentProfile.chPlatformVersion = dev.chPlatformVersion;
+      currentProfile.architecture = dev.architecture;
+      currentProfile.bitness = dev.bitness;
+      currentProfile.model = dev.model;
+      currentProfile.mobile = dev.mobile;
+      currentProfile.maxTouchPoints = dev.maxTouchPoints;
+      currentProfile.cores = dev.cores;
+      currentProfile.memory = dev.memory;
+      currentProfile.screenWidth = dev.screenWidth;
+      currentProfile.screenHeight = dev.screenHeight;
+      currentProfile.availWidth = dev.availWidth;
+      currentProfile.availHeight = dev.availHeight;
+      currentProfile.dpr = dev.dpr;
+      currentProfile.colorDepth = dev.colorDepth;
+      currentProfile.gpuVendor = dev.gpuVendor;
+      currentProfile.gpuRenderer = dev.gpuRenderer;
+      currentProfile.browserName = dev.defaultBrowser || 'Chrome';
+      currentProfile.browserVersion = dev.defaultBrowserVersion || '136.0.0.0';
+
+      if (typeof presets.buildBrowserIdentity === 'function') {
+        const built = presets.buildBrowserIdentity(currentProfile);
+        currentProfile.ua = built.ua;
+        currentProfile.vendor = built.vendor;
+        currentProfile.brands = built.brands;
+      }
+      updateUIFromState();
+      presetDeviceSelect.value = dev.id;
+      document.getElementById('saveStatus').textContent = `Loaded ${dev.deviceName} preset. Save the profile to apply.`;
+    });
+  }
+
   presetUaSelect.addEventListener('change', () => {
     const idx = parseInt(presetUaSelect.value, 10);
     const uaObj = presets.USER_AGENT_PRESETS[idx];
@@ -445,10 +627,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       customUaInput.value = uaObj.ua;
       customPlatformInput.value = uaObj.platform;
       customChPlatformInput.value = uaObj.chPlatform;
+      if (customBrowserNameInput) customBrowserNameInput.value = uaObj.browser || 'Chrome';
+      if (customBrowserVersionInput) customBrowserVersionInput.value = uaObj.browserVersion || '136.0.0.0';
+      if (customVendorInput && uaObj.vendor !== undefined) customVendorInput.value = uaObj.vendor;
+      if (customOsInput && uaObj.os) customOsInput.value = uaObj.os;
+      if (customOsVersionInput && uaObj.osVersion) customOsVersionInput.value = uaObj.osVersion;
+      if (customModelInput && uaObj.model !== undefined) customModelInput.value = uaObj.model;
+      if (customMobileToggle && typeof uaObj.mobile === 'boolean') {
+        customMobileToggle.checked = uaObj.mobile;
+        if (customTouchPointsInput) customTouchPointsInput.value = uaObj.mobile || uaObj.platform === 'iPad' ? 5 : 0;
+      }
+      if (customBrandsInput && uaObj.brands) customBrandsInput.value = formatBrands(uaObj.brands);
+
       currentProfile.ua = uaObj.ua;
       currentProfile.platform = uaObj.platform;
       currentProfile.chPlatform = uaObj.chPlatform;
       currentProfile.brands = uaObj.brands;
+      currentProfile.browserName = uaObj.browser || currentProfile.browserName;
+      currentProfile.browserVersion = uaObj.browserVersion || currentProfile.browserVersion;
+      if (uaObj.vendor !== undefined) currentProfile.vendor = uaObj.vendor;
+      if (uaObj.os) currentProfile.os = uaObj.os;
+      if (uaObj.osVersion) currentProfile.chPlatformVersion = uaObj.osVersion;
+      if (uaObj.model !== undefined) currentProfile.model = uaObj.model;
+      if (typeof uaObj.mobile === 'boolean') currentProfile.mobile = uaObj.mobile;
     }
   });
 
@@ -498,22 +699,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (screenObj) {
       customScreenWidth.value = screenObj.width;
       customScreenHeight.value = screenObj.height;
+      if (customAvailWidth) customAvailWidth.value = screenObj.availWidth;
+      if (customAvailHeight) customAvailHeight.value = screenObj.availHeight;
       customDpr.value = screenObj.dpr;
+      if (customColorDepth) customColorDepth.value = screenObj.colorDepth || 24;
       currentProfile.screenWidth = screenObj.width;
       currentProfile.screenHeight = screenObj.height;
       currentProfile.availWidth = screenObj.availWidth;
       currentProfile.availHeight = screenObj.availHeight;
       currentProfile.dpr = screenObj.dpr;
+      currentProfile.colorDepth = screenObj.colorDepth || 24;
     }
   });
 
   presetCpuSelect.addEventListener('change', () => {
-    currentProfile.cores = parseInt(presetCpuSelect.value, 10);
+    const val = parseInt(presetCpuSelect.value, 10);
+    currentProfile.cores = val;
+    if (customCoresInput) customCoresInput.value = val;
   });
 
+  if (customCoresInput) {
+    customCoresInput.addEventListener('input', () => {
+      const val = parseInt(customCoresInput.value, 10);
+      if (Number.isFinite(val) && val >= 1) {
+        currentProfile.cores = val;
+        if ([...presetCpuSelect.options].some(o => Number(o.value) === val)) presetCpuSelect.value = val;
+      }
+    });
+  }
+
   presetMemorySelect.addEventListener('change', () => {
-    currentProfile.memory = parseInt(presetMemorySelect.value, 10);
+    const val = parseFloat(presetMemorySelect.value);
+    currentProfile.memory = val;
+    if (customMemoryInput) customMemoryInput.value = val;
   });
+
+  if (customMemoryInput) {
+    customMemoryInput.addEventListener('input', () => {
+      const val = parseFloat(customMemoryInput.value);
+      if (Number.isFinite(val) && val >= 0.25) {
+        currentProfile.memory = val;
+        if ([...presetMemorySelect.options].some(o => Number(o.value) === val)) presetMemorySelect.value = val;
+      }
+    });
+  }
 
   // --------------------------------------------------------------------------
   // 8. SAVE & RESET BUTTONS
@@ -534,7 +763,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentProfile.locale !== locale && customAcceptLangInput.value.trim() === currentProfile.acceptLanguage) {
       customAcceptLangInput.value = locale + ',' + new Intl.Locale(locale).language + ';q=0.9';
     }
-    // Read manual edits
+    // Read manual edits - Device & OS
+    if (customProfileNameInput && customProfileNameInput.value.trim()) {
+      currentProfile.name = customProfileNameInput.value.trim();
+    }
+    if (customOsInput && customOsInput.value.trim()) {
+      currentProfile.os = customOsInput.value.trim();
+    }
+    if (customOsVersionInput && customOsVersionInput.value.trim()) {
+      currentProfile.chPlatformVersion = customOsVersionInput.value.trim();
+    }
+    if (customModelInput) {
+      currentProfile.model = customModelInput.value.trim();
+    }
+    if (customArchInput && customArchInput.value.trim()) {
+      currentProfile.architecture = customArchInput.value.trim();
+    }
+    if (customBitnessInput && customBitnessInput.value.trim()) {
+      currentProfile.bitness = customBitnessInput.value.trim();
+    }
+    if (customMobileToggle) {
+      currentProfile.mobile = Boolean(customMobileToggle.checked);
+    }
+    if (customTouchPointsInput) {
+      const tp = parseInt(customTouchPointsInput.value, 10);
+      currentProfile.maxTouchPoints = Number.isInteger(tp) && tp >= 0 && tp <= 32 ? tp : (currentProfile.mobile ? 5 : 0);
+    }
+
+    // Read manual edits - Browser
+    if (customBrowserNameInput && customBrowserNameInput.value.trim()) {
+      currentProfile.browserName = customBrowserNameInput.value.trim();
+    }
+    if (customBrowserVersionInput && customBrowserVersionInput.value.trim()) {
+      currentProfile.browserVersion = customBrowserVersionInput.value.trim();
+    }
+    if (customVendorInput) {
+      currentProfile.vendor = customVendorInput.value.trim();
+    }
+    if (customBrandsInput && customBrandsInput.value.trim()) {
+      currentProfile.brands = parseBrands(customBrandsInput.value, currentProfile.brands);
+    }
+
     currentProfile.ua = customUaInput.value.trim();
     currentProfile.platform = customPlatformInput.value.trim();
     currentProfile.chPlatform = customChPlatformInput.value.trim();
@@ -549,13 +818,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentProfile.acceptLanguage = customAcceptLangInput.value.trim();
     currentProfile.gpuVendor = customGpuVendorInput.value.trim();
     currentProfile.gpuRenderer = customGpuRendererInput.value.trim();
-    currentProfile.screenWidth = parseInt(customScreenWidth.value, 10) || 1920;
-    currentProfile.screenHeight = parseInt(customScreenHeight.value, 10) || 1080;
-    currentProfile.availWidth = Math.min(currentProfile.availWidth || currentProfile.screenWidth, currentProfile.screenWidth);
-    currentProfile.availHeight = Math.min(currentProfile.availHeight || currentProfile.screenHeight, currentProfile.screenHeight);
+
+    const sw = parseInt(customScreenWidth.value, 10) || 1920;
+    const sh = parseInt(customScreenHeight.value, 10) || 1080;
+    currentProfile.screenWidth = sw;
+    currentProfile.screenHeight = sh;
+    const aw = customAvailWidth ? parseInt(customAvailWidth.value, 10) : (currentProfile.availWidth || sw);
+    const ah = customAvailHeight ? parseInt(customAvailHeight.value, 10) : (currentProfile.availHeight || sh);
+    currentProfile.availWidth = Math.min(Number.isFinite(aw) && aw > 0 ? aw : sw, sw);
+    currentProfile.availHeight = Math.min(Number.isFinite(ah) && ah > 0 ? ah : sh, sh);
     currentProfile.dpr = parseFloat(customDpr.value) || 1.0;
-    currentProfile.cores = parseInt(presetCpuSelect.value, 10) || 8;
-    currentProfile.memory = parseInt(presetMemorySelect.value, 10) || 16;
+    if (customColorDepth) {
+      currentProfile.colorDepth = parseInt(customColorDepth.value, 10) || 24;
+    }
+    currentProfile.cores = (customCoresInput ? parseInt(customCoresInput.value, 10) : 0) || parseInt(presetCpuSelect.value, 10) || 8;
+    currentProfile.memory = (customMemoryInput ? parseFloat(customMemoryInput.value) : 0) || parseFloat(presetMemorySelect.value) || 8;
 
     canvasNoise = toggleCanvasNoise.checked;
     audioNoise = toggleAudioNoise.checked;
@@ -703,7 +980,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // AUTO-FIX ENGINES FOR TIMEZONE & WEBGL HARDWARE
   // --------------------------------------------------------------------------
   async function autoFixTimezone() {
-    const tz = currentProfile.timezone || 'America/New_York';
+    const tz = (customTzInput && customTzInput.value.trim()) || currentProfile.timezone || 'America/New_York';
     const exactOffset = presets.calculateExactTimezoneOffset
       ? presets.calculateExactTimezoneOffset(tz)
       : 0;
@@ -711,6 +988,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? presets.getTimezoneAbbr(tz)
       : 'GMT';
 
+    currentProfile.timezone = tz;
     currentProfile.offset = exactOffset;
     currentProfile.timezoneAbbr = exactAbbr;
     customTzOffset.value = exactOffset;
@@ -721,11 +999,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function autoFixWebGL() {
-    const isMac = (currentProfile.os === 'macOS') || (currentProfile.platform && currentProfile.platform.includes('Mac'));
-    const isWin = (currentProfile.os === 'Windows') || (currentProfile.platform && currentProfile.platform.includes('Win'));
+    const os = currentProfile.os || '';
+    const platform = currentProfile.platform || '';
+    const model = currentProfile.model || '';
+    let targetGpu = null;
 
-    const targetOs = isMac ? 'MacIntel' : isWin ? 'Windows' : 'Linux x86_64';
-    const targetGpu = presets.GPU_PRESETS.find(g => g.os === targetOs);
+    if (/iOS|iPadOS/i.test(os) || platform === 'iPhone' || platform === 'iPad') {
+      targetGpu = presets.GPU_PRESETS.find(g => g.os === 'iOS');
+    } else if (/Android/i.test(os) || platform.includes('armv8')) {
+      if (/Pixel 10/i.test(model)) {
+        targetGpu = presets.GPU_PRESETS.find(g => g.renderer.includes('PowerVR'));
+      } else if (/Pixel/i.test(model)) {
+        targetGpu = presets.GPU_PRESETS.find(g => g.renderer.includes('Mali-G715'));
+      } else {
+        targetGpu = presets.GPU_PRESETS.find(g => g.os === 'Android');
+      }
+    } else {
+      const isMac = (os === 'macOS') || platform.includes('Mac');
+      const isWin = (os === 'Windows') || platform.includes('Win');
+      const targetOs = isMac ? 'MacIntel' : isWin ? 'Windows' : 'Linux x86_64';
+      targetGpu = presets.GPU_PRESETS.find(g => g.os === targetOs);
+    }
+
     if (!targetGpu) { showToast('No graphics sample matches this platform.'); return false; }
 
     currentProfile.gpuVendor = targetGpu.vendor;

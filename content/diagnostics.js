@@ -8,8 +8,8 @@ async function runPageDiagnostics(expected) {
     } catch (error) { checks.push({ name, expectation, observed: error.name + ': ' + error.message, status: 'fail' }); }
   };
   await check('Configured identity', expected.enabled ? 'Page values match the saved profile' : 'Overrides disabled for this frame', () => ({
-    pass: !expected.enabled || navigator.userAgent === expected.ua && navigator.language === expected.locale && JSON.stringify(navigator.languages) === JSON.stringify(expected.languages),
-    observed: expected.enabled ? navigator.language + ' · ' + navigator.platform : 'Bypass: configured identity comparison skipped'
+    pass: !expected.enabled || navigator.userAgent === expected.ua && navigator.platform === expected.platform && navigator.language === expected.locale && JSON.stringify(navigator.languages) === JSON.stringify(expected.languages) && (expected.maxTouchPoints === undefined || navigator.maxTouchPoints === expected.maxTouchPoints),
+    observed: expected.enabled ? navigator.language + ' · ' + navigator.platform + (expected.model ? ' · ' + expected.model : '') + ' · touch:' + navigator.maxTouchPoints : 'Bypass: configured identity comparison skipped'
   }));
   await check('Timezone', 'Formatter output and date offset agree', () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
