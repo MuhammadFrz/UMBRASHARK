@@ -31,7 +31,7 @@ IP detection contacts a third-party provider only when requested. It does not ch
 
 ### 3. Preset Data
 
-`data/profiles.js` exposes three identity samples for Windows, macOS, and Linux, with corresponding browser, GPU, and display samples plus regional and language options. Their schema, selected page values, Client Hints, and HTTP user-agent headers are regression-tested in Edge. They are historical configuration samples, not certified hardware identities, current browser versions, or proof of compatibility on those operating systems. Existing saved profiles are retained. Language presets do not spoof keyboard layouts.
+`data/profiles.js` exposes three full identity samples for Windows, macOS, and Linux, plus separate sample lists for browsers, GPUs, and displays — including 37 city/timezone entries and 25 language entries. In the dashboard, start from a **Sample profile**, then mix and match individual samples or override individual fields (user-agent, platform, timezone and offset, coordinates, locale, GPU, display, CPU cores, and device memory), then choose **Save profile**. Their schema, selected page values, Client Hints, and HTTP user-agent headers are regression-tested in Edge. They are historical configuration samples, not certified hardware identities, current browser versions, or proof of compatibility on those operating systems. Existing saved profiles are retained. Language presets do not spoof keyboard layouts.
 
 ### 4. Full-Page Control Center
 
