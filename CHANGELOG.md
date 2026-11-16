@@ -12,6 +12,9 @@ All notable changes to the UmbraShark project are documented here.
 ### Fixed
 - Stale page initialization recovery: explicit saved-profile application, confirmed engine installation diagnostics, and safe reload recovery instead of stacking stale hooks.
 - Unified extension icons: a shared teal-and-white SVG mark, antialiased toolbar/app PNGs, and a multi-size ICO favicon, with top-level manifest icons and dashboard favicon links.
+- Separate saved settings from browser-control application and page verification; surface application failures and check the effective WebRTC policy.
+- Preserve unsaved edits, warn before discarding them, and invalidate IP-alignment undo after later profile changes.
+- Restore toggle state and retain site exceptions when storage writes fail.
 
 ## [1.0.0] - 2026-10-20
 ### Added

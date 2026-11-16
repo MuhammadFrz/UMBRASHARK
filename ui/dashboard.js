@@ -116,6 +116,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ipMatchLanguage = document.getElementById('ipMatchLanguage');
   let detectedLocation = null;
   let profileBeforeAlignment = null;
+  let alignedProfile = null;
+  let profileDirty = false;
+  let editVersion = 0;
+  let applicationRequest = 0;
+  let whitelistSaving = false;
+  function invalidateAlignmentUndo() {
+    profileBeforeAlignment = null;
+    alignedProfile = null;
+    btnUndoIp.hidden = true;
+  }
+  function discardProfileEdits() {
+    return !profileDirty || window.confirm('Discard unsaved profile edits?');
+  }
+  window.addEventListener('beforeunload', event => {
+    if (profileDirty) { event.preventDefault(); event.returnValue = ''; }
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.cloakProfile && alignedProfile &&
+        JSON.stringify(changes.cloakProfile.newValue) !== JSON.stringify(alignedProfile)) invalidateAlignmentUndo();
+  });
+  async function saveSettings(settings) {
+    await chrome.storage.local.set(settings);
+    // Storage success does not establish that browser controls or webpages updated.
+    const request = ++applicationRequest;
+    const status = document.getElementById('applicationStatus');
+    document.getElementById('verificationStatus').textContent = 'Page verification pending. Run diagnostics.';
+    status.textContent = 'Saved. Applying browser controls…';
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'SYNC_BROWSER_SETTINGS' });
+      if (!response || !response.ok) throw new Error(response && response.error || 'No response from the extension.');
+      if (request === applicationRequest) status.textContent = 'Saved. Browser controls applied.';
+    } catch (error) {
+      if (request === applicationRequest) status.textContent = 'Saved, but browser controls could not be fully applied: ' + error.message + ' Save again to retry.';
+    }
+  }
 
   function formatBrands(brands) {
     if (!Array.isArray(brands) || !brands.length) return 'Not/A)Brand:8, Chromium:136, Google Chrome:136';
@@ -189,13 +224,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     btnApplyIp.disabled = true;
-    const previous = structuredClone(currentProfile);
+    if (!discardProfileEdits()) { btnApplyIp.disabled = false; return; }
+    let previous;
     try {
-      const next = window.IP_ALIGNMENT.alignProfile(currentProfile, detectedLocation, ipMatchLanguage.checked);
+      previous = (await chrome.storage.local.get('cloakProfile')).cloakProfile;
+      const next = window.IP_ALIGNMENT.alignProfile(previous, detectedLocation, ipMatchLanguage.checked);
       // Save once before updating the UI. Detection alone never writes settings.
-      await chrome.storage.local.set({ cloakProfile: next });
+      await saveSettings({ cloakProfile: next });
       currentProfile = next;
       profileBeforeAlignment = previous;
+      alignedProfile = structuredClone(next);
+      profileDirty = false;
       btnUndoIp.hidden = false;
       updateUIFromState();
       setIpStatus('Profile aligned. Reload open webpages to check the new settings.' + (isEnabled ? '' : ' Overrides are currently paused.'), 'success');
@@ -208,12 +247,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   btnUndoIp.addEventListener('click', async () => {
-    if (!profileBeforeAlignment) return;
+    if (!profileBeforeAlignment || !discardProfileEdits()) return;
     btnUndoIp.disabled = true;
     try {
-      await chrome.storage.local.set({ cloakProfile: profileBeforeAlignment });
-      currentProfile = profileBeforeAlignment;
-      profileBeforeAlignment = null;
+      const saved = (await chrome.storage.local.get('cloakProfile')).cloakProfile;
+      if (JSON.stringify(saved) !== JSON.stringify(alignedProfile)) {
+        invalidateAlignmentUndo(); showToast('Profile changed since alignment. Undo is no longer available.'); return;
+      }
+      const previous = profileBeforeAlignment;
+      await saveSettings({ cloakProfile: previous });
+      currentProfile = previous;
+      invalidateAlignmentUndo();
+      profileDirty = false;
       btnUndoIp.hidden = true;
       updateUIFromState();
       setIpStatus('Previous profile restored. Reload open webpages to check it.', 'success');
@@ -491,36 +536,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   btnAddWhitelist.addEventListener('click', async () => {
+    if (whitelistSaving) return;
     let domain;
     try { domain = window.CLOAK_SETTINGS.domain(whitelistInput.value); }
     catch (error) { showToast(error.message); return; }
     if (!whitelist.includes(domain)) {
-      whitelist.push(domain);
-      await chrome.storage.local.set({ whitelist });
-      whitelistInput.value = '';
-      renderWhitelist();
-      showToast(`Added ${domain} to whitelist.`);
+      whitelistSaving = true;
+      btnAddWhitelist.disabled = true;
+      try {
+        const next = [...whitelist, domain];
+        await saveSettings({ whitelist: next });
+        whitelist = next;
+        whitelistInput.value = '';
+        renderWhitelist();
+        showToast(`Saved exception for ${domain}. Reload affected webpages.`);
+      } catch (error) { showToast('Could not save exception. ' + error.message); }
+      finally { whitelistSaving = false; btnAddWhitelist.disabled = false; }
     }
   });
 
   whitelistContainer.addEventListener('click', async (e) => {
+    if (whitelistSaving) return;
     if (e.target.classList.contains('btn-remove')) {
-      const idx = parseInt(e.target.dataset.idx, 10);
-      const removed = whitelist.splice(idx, 1)[0];
-      await chrome.storage.local.set({ whitelist });
-      renderWhitelist();
-      showToast(`Removed ${removed} from whitelist.`);
+      const button = e.target;
+      whitelistSaving = true;
+      button.disabled = true;
+      try {
+        const idx = parseInt(button.dataset.idx, 10);
+        const next = whitelist.filter((domain, index) => index !== idx);
+        await saveSettings({ whitelist: next });
+        whitelist = next;
+        renderWhitelist();
+        showToast('Exception removed. Reload affected webpages.');
+      } catch (error) { showToast('Could not remove exception. ' + error.message); }
+      finally { whitelistSaving = false; button.disabled = false; }
     }
   });
 
-  // --------------------------------------------------------------------------
-  // 6. MASTER TOGGLE & PERSONA SWITCHERS
-  // --------------------------------------------------------------------------
   masterToggle.addEventListener('change', async () => {
-    isEnabled = masterToggle.checked;
-    await chrome.storage.local.set({ cloakEnabled: isEnabled });
-    updateUIFromState();
-    showToast(isEnabled ? 'Browser overrides enabled.' : 'Browser overrides paused.');
+    const enabled = masterToggle.checked;
+    masterToggle.disabled = true;
+    try {
+      await saveSettings({ cloakEnabled: enabled });
+      isEnabled = enabled;
+      statusPill.classList.toggle('disabled', !isEnabled);
+      statusLabel.textContent = isEnabled ? 'Overrides enabled' : 'Overrides paused';
+      showToast('Setting saved. Check application status and page diagnostics.');
+    } catch (error) {
+      masterToggle.checked = isEnabled;
+      showToast('Could not save override setting. ' + error.message);
+    } finally { masterToggle.disabled = false; }
   });
 
   function applyPersonaById(id) {
@@ -532,16 +597,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   quickPersonaSelect.addEventListener('change', async () => {
+    if (!discardProfileEdits()) { quickPersonaSelect.value = currentProfile.id; return; }
     applyPersonaById(quickPersonaSelect.value);
     await saveActiveProfile();
   });
 
   studioPersonaSelect.addEventListener('change', () => {
+    if (!discardProfileEdits()) { studioPersonaSelect.value = currentProfile.id; return; }
     applyPersonaById(studioPersonaSelect.value);
+    markProfileDirty();
   });
 
   // Roll Random Button
   btnRollRandom.addEventListener('click', async () => {
+    if (!discardProfileEdits()) return;
     const available = presets.IDENTITY_PRESETS.filter(p => p.id !== currentProfile.id);
     const randomPick = available[Math.floor(Math.random() * available.length)] || presets.IDENTITY_PRESETS[0];
     currentProfile = Object.assign({}, randomPick);
@@ -574,6 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnBuildUaStudio) {
     btnBuildUaStudio.addEventListener('click', () => {
       rebuildUaFromForm();
+      markProfileDirty();
       document.getElementById('saveStatus').textContent = 'Built User-Agent & Client Hints from fields. Save the profile to apply.';
       showToast('Rebuilt User-Agent and Client Hints from configured version & device.');
     });
@@ -748,6 +818,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 8. SAVE & RESET BUTTONS
   // --------------------------------------------------------------------------
   async function saveActiveProfile() {
+    profileDirty = true;
+    const savingVersion = editVersion;
     for (const input of document.querySelectorAll('#tab-studio input, #tab-studio textarea')) {
       if (!input.reportValidity()) return;
     }
@@ -841,7 +913,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       window.CLOAK_SETTINGS.profile(currentProfile);
-      await chrome.storage.local.set({
+      await saveSettings({
         cloakProfile: currentProfile,
         cloakEnabled: isEnabled,
         canvasNoise,
@@ -855,20 +927,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       return false;
     }
 
+    if (savingVersion !== editVersion) {
+      document.getElementById('saveStatus').textContent = 'Earlier edits saved. Newer edits are still unsaved.';
+      return true;
+    }
+    profileDirty = false;
+    invalidateAlignmentUndo();
     updateUIFromState();
     document.getElementById('saveStatus').textContent = 'Profile saved. Reload open webpages to verify changes.';
     showToast('Profile saved.');
     return true;
   }
 
-  document.getElementById('tab-studio').addEventListener('input', () => {
+  function markProfileDirty(event) {
+    if (event && event.target === studioPersonaSelect) return;
+    editVersion++;
+    profileDirty = true;
+    invalidateAlignmentUndo();
     document.getElementById('saveStatus').textContent = 'Unsaved changes. Save the profile to apply them.';
-  });
+  }
+  document.getElementById('tab-studio').addEventListener('input', markProfileDirty);
+  document.getElementById('tab-studio').addEventListener('change', markProfileDirty);
 
   btnSaveConfig.addEventListener('click', saveActiveProfile);
   toggleWebRtcProtect.addEventListener('change', () => { webRtcPolicySelect.disabled = !toggleWebRtcProtect.checked; });
 
   btnResetDefault.addEventListener('click', async () => {
+    if (!discardProfileEdits()) return;
     currentProfile = Object.assign({}, presets.DEFAULT_PROFILE);
     updateUIFromState();
     if (await saveActiveProfile()) showToast('Reset to default profile.');
@@ -968,6 +1053,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       rows.push({name:'Effective WebRTC policy',expectation:'Browser policy is reported, not inferred',observed:response.policy.value + ' · ' + response.policy.levelOfControl,status:'info',scope:'Browser-wide'});
       const passed = rows.filter(r => r.status === 'pass').length;
       const tested = rows.filter(r => r.status === 'pass' || r.status === 'fail').length;
+      document.getElementById('verificationStatus').textContent = `Last selected-page check: ${passed}/${tested} assertions passed. Skipped frames and observations are listed in Diagnostics.`;
       diagScore.textContent = passed + '/' + tested;
       diagSummary.textContent = passed + ' of ' + tested + ' assertions passed across ' + response.frames.length + ' frames. Skipped frames and WebRTC observations are listed separately. This is not an authenticity score.';
       diagTableBody.innerHTML = rows.map(r => '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.expectation) + '</td><td>' + escapeHtml(r.observed) + '</td><td><span class="' + (r.status === 'pass' ? 'tag-pass' : r.status === 'fail' ? 'tag-fail' : 'mono-meta') + '">' + escapeHtml(r.status.toUpperCase()) + '</span></td><td>' + escapeHtml(r.scope) + '</td></tr>').join('');

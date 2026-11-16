@@ -11,6 +11,10 @@ The manifest declares version **1.0.0**. The [changelog](CHANGELOG.md) records t
 3. **Site exceptions**: Add a hostname to bypass supported overrides on that site and its descendant frames. Reload the affected webpages after changing exceptions.
 4. **Diagnostics**: Select an open HTTP/HTTPS webpage and choose **Run checks** to inspect that page and its injectable frames. If **Engine installation** fails, choose **Apply saved profile to page**. If a stale engine remains from an extension reload, use **Reload selected page**, then run checks again. Reloading may discard unsaved page input. Assertions and informational observations are listed separately.
 
+The dashboard distinguishes **Saved** settings from **Browser controls applied**. Application errors remain visible even when storage succeeds; save again to retry. Page verification remains pending until you run Diagnostics on a regular webpage. Browser-control application does not certify page behavior.
+
+Unsaved profile edits trigger a warning before closing/reloading the dashboard or replacing the profile. IP-alignment undo is invalidated by later profile edits or saved profile changes. Failed override-toggle and site-exception saves retain the previous setting and report an error.
+
 IP detection contacts a third-party provider only when requested. It does not change your public IP or determine your hardware. See the regional alignment and testing sections for disclosure details.
 
 ---

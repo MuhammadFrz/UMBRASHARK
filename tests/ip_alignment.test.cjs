@@ -157,9 +157,34 @@ test('WebRTC mode is allowlisted and disabling releases the extension override',
 
 test('page repair and reload requests are restricted to the dashboard', async () => {
   const harness = worker(async () => {});
-  for (const type of ['APPLY_PROFILE_TO_TAB','RELOAD_PROFILE_TAB','RUN_PAGE_DIAGNOSTICS','GET_DIAGNOSTIC_TABS']) {
+  for (const type of ['SYNC_BROWSER_SETTINGS','APPLY_PROFILE_TO_TAB','RELOAD_PROFILE_TAB','RUN_PAGE_DIAGNOSTICS','GET_DIAGNOSTIC_TABS']) {
     const result = await harness.dispatch({type,tabId:123}, {id:'test',url:'https://example.com/'});
     assert.equal(result.ok, false);
     assert.match(result.error, /dashboard/);
   }
+});
+
+
+test('browser application reports failures, retries, and checks effective WebRTC policy', async () => {
+  const harness = worker(async () => {});
+  const chrome = harness.context.chrome;
+  harness.context.CLOAK_SETTINGS = require('../data/settings.js');
+  chrome.storage.local.get = async () => ({ cloakProfile: presets.DEFAULT_PROFILE, whitelist: [] });
+  chrome.tabs.query = async () => [];
+  let failRules = true, effective = 'default';
+  chrome.declarativeNetRequest = {
+    async updateDynamicRules() { if (failRules) throw new Error('Rules rejected'); },
+    async updateSessionRules() {}
+  };
+  chrome.privacy = { network: { webRTCIPHandlingPolicy: {
+    set(details, callback) { callback(); },
+    async get() { return { value: effective, levelOfControl: 'controlled_by_this_extension' }; }
+  } } };
+  const sender = { id: 'test', url: 'chrome-extension://test/ui/dashboard.html' };
+  const send = () => harness.dispatch({ type: 'SYNC_BROWSER_SETTINGS' }, sender);
+  assert.match((await send()).error, /Rules rejected/);
+  failRules = false;
+  assert.match((await send()).error, /not effective/);
+  effective = 'disable_non_proxied_udp';
+  assert.equal((await send()).ok, true);
 });

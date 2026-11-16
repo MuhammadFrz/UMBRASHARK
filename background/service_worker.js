@@ -57,7 +57,7 @@ async function refreshEngine(sender) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || !['REFRESH_ENGINE', 'GET_DIAGNOSTIC_TABS', 'RUN_PAGE_DIAGNOSTICS', 'APPLY_PROFILE_TO_TAB', 'RELOAD_PROFILE_TAB'].includes(message.type)) return;
+  if (!message || !['SYNC_BROWSER_SETTINGS', 'REFRESH_ENGINE', 'GET_DIAGNOSTIC_TABS', 'RUN_PAGE_DIAGNOSTICS', 'APPLY_PROFILE_TO_TAB', 'RELOAD_PROFILE_TAB'].includes(message.type)) return;
   const dashboard = sender.id === chrome.runtime.id && sender.url === chrome.runtime.getURL('ui/dashboard.html');
   let task;
   if (message.type === 'REFRESH_ENGINE') {
@@ -67,6 +67,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     task = queueFrame(sender.documentId, () => refreshEngine(sender));
   } else if (!dashboard) {
     sendResponse({ ok: false, error: 'Open the dashboard to run diagnostics.' }); return;
+  } else if (message.type === 'SYNC_BROWSER_SETTINGS') {
+    task = syncBrowserSettings().then(() => ({ ok: true }));
   } else if (message.type === 'GET_DIAGNOSTIC_TABS') {
     task = chrome.tabs.query({}).then(tabs => ({ ok: true, tabs: tabs.filter(t => /^https?:/.test(t.url || '')).map(t => ({ id: t.id, title: t.title || t.url, url: t.url })) }));
   } else if (message.type === 'APPLY_PROFILE_TO_TAB' || message.type === 'RELOAD_PROFILE_TAB') {
@@ -299,7 +301,12 @@ function syncBrowserSettings() {
     const state = CLOAK_SETTINGS.state(data);
     const domains = CLOAK_SETTINGS.whitelist(data.whitelist);
     await updateNetworkHeaders(state, state.enabled, domains);
-    await applyWebRtcPolicy(state.enabled && data.webRtcProtect !== false, data.webRtcPolicy);
+    const protect = state.enabled && data.webRtcProtect !== false;
+    await applyWebRtcPolicy(protect, data.webRtcPolicy);
+    const policy = await chrome.privacy.network.webRTCIPHandlingPolicy.get({});
+    const expectedPolicy = data.webRtcPolicy === 'default_public_interface_only' ? data.webRtcPolicy : 'disable_non_proxied_udp';
+    if (protect && policy.value !== expectedPolicy) throw new Error('The requested WebRTC policy is not effective. Check browser or other extension controls.');
+    if (!protect && policy.levelOfControl === 'controlled_by_this_extension') throw new Error('The WebRTC override was not released.');
     // Covers already-open whitelisted top-level tabs as well as future navigation.
     const tabIds = (await chrome.tabs.query({})).filter(tab => {
       try { return CLOAK_SETTINGS.matches(new URL(tab.url).hostname, domains); } catch (e) { return false; }
@@ -308,6 +315,7 @@ function syncBrowserSettings() {
       ? [{ id: 1003, priority: 3, action: { type: 'allow' }, condition: { tabIds,
         // A subsequent top-level navigation must be evaluated by its new destination.
         resourceTypes: ['sub_frame', 'stylesheet', 'script', 'image', 'font', 'object', 'xmlhttprequest', 'ping', 'media', 'other'] } }] : [] });
+    if (state.error) throw new Error(state.error);
   });
   return browserSync;
 }
